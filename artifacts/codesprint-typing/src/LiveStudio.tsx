@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type ChangeEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from 'react';
 import {
   Activity,
   Check,
@@ -13,6 +13,7 @@ import {
   LockKeyhole,
   Play,
   RotateCcw,
+  Search,
   Share2,
   Sparkles,
   Terminal,
@@ -67,6 +68,7 @@ export type LiveStudioResult = {
 
 export type LiveStudioProps = {
   challenges?: LiveStudioChallenge[];
+  curatedChallenges?: LiveStudioChallenge[];
   cadence?: LiveStudioCadence;
   tier?: LiveStudioTier;
   challengeId?: string;
@@ -82,6 +84,7 @@ export type LiveStudioProps = {
   onCadenceChange?: (cadence: LiveStudioCadence) => void;
   onTierChange?: (tier: LiveStudioTier) => void;
   onChallengeChange?: (challengeId: string) => void;
+  onLibrarySelect?: (challengeId: string, tier: LiveStudioTier) => void;
   onTypedChange?: (value: string) => void;
   onReset?: () => void;
   onComplete?: (result: LiveStudioResult) => void;
@@ -297,6 +300,7 @@ export default function LiveStudio({
   onComplete,
   onShare,
   onCopyShare,
+  onLibrarySelect,
   onStart,
   shareUrl,
   shareText,
@@ -304,10 +308,29 @@ export default function LiveStudio({
   generationState = 'generated',
   generationMessage,
   className,
+  curatedChallenges = [],
 }: LiveStudioProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const availableChallenges = challenges.length ? challenges : fallbackChallenges;
+  const librarySource = curatedChallenges.length ? curatedChallenges : availableChallenges;
   const tierChallenges = useMemo(() => availableChallenges.filter(challenge => challenge.tier === tier), [availableChallenges, tier]);
+  const [libraryQuery, setLibraryQuery] = useState('');
+  const [libraryTier, setLibraryTier] = useState<LiveStudioTier | 'All'>(tier);
+  const [libraryLanguage, setLibraryLanguage] = useState('All');
+  const [libraryVisualizer, setLibraryVisualizer] = useState('All');
+  useEffect(() => setLibraryTier(tier), [tier]);
+  const filteredLibrary = useMemo(() => {
+    const query = libraryQuery.trim().toLowerCase();
+    return librarySource.filter(challenge => {
+      const matchesQuery = !query || [challenge.title, challenge.language, challenge.description, challenge.objective, challenge.code].some(value => value?.toLowerCase().includes(query));
+      const matchesTier = libraryTier === 'All' || challenge.tier === libraryTier;
+      const matchesLanguage = libraryLanguage === 'All' || challenge.language === libraryLanguage;
+      const matchesVisualizer = libraryVisualizer === 'All' || challenge.visualizer === libraryVisualizer;
+      return matchesQuery && matchesTier && matchesLanguage && matchesVisualizer;
+    });
+  }, [libraryLanguage, libraryQuery, librarySource, libraryTier, libraryVisualizer]);
+  const libraryLanguages = useMemo(() => ['All', ...Array.from(new Set(librarySource.map(challenge => challenge.language)))], [librarySource]);
+  const libraryVisualizers = ['All', 'counter', 'palette', 'tasks', 'rankings', 'terminal'];
   const activeChallenge = tierChallenges.find(challenge => challenge.id === challengeId) ?? tierChallenges[0] ?? availableChallenges[0];
   const target = activeChallenge?.code ?? '';
   const typed = typedValue.slice(0, target.length);
@@ -445,6 +468,85 @@ export default function LiveStudio({
           </select>
           <ChevronDown size={15} className="pointer-events-none absolute right-3.5 top-3.5 text-[hsl(var(--muted-foreground))]" />
         </label>
+      </section>
+
+      <section className="rise rise-delay-2 relative mb-7 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.32)] p-4 md:p-5" data-testid="live-curated-library">
+        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+          <div>
+            <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--primary))]">
+              <Search size={13} />
+              Curated code library
+            </div>
+            <p className="mt-2 max-w-xl text-xs leading-5 text-[hsl(var(--muted-foreground))]">
+              Browse reviewed targets that work locally, with or without AI or a generator connection.
+            </p>
+          </div>
+          <div className="rounded-lg border border-[hsl(var(--primary)/.22)] bg-[hsl(var(--primary)/.06)] px-3 py-2 font-mono text-[10px] text-[hsl(var(--primary))]" data-testid="text-live-library-count">
+            {filteredLibrary.length} / {librarySource.length} targets
+          </div>
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-[1.5fr_repeat(3,minmax(0,1fr))]">
+          <label className="relative">
+            <span className="sr-only">Search curated targets</span>
+            <Search size={14} className="pointer-events-none absolute left-3 top-3 text-[hsl(var(--muted-foreground))]" />
+            <input
+              value={libraryQuery}
+              onChange={event => setLibraryQuery(event.target.value)}
+              placeholder="Search title, objective, or code"
+              className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.55)] py-2.5 pl-9 pr-3 text-xs text-[hsl(var(--foreground))] outline-none placeholder:text-[hsl(var(--muted-foreground))] focus:border-[hsl(var(--primary)/.7)]"
+              data-testid="input-live-library-search"
+            />
+          </label>
+          <label>
+            <span className="sr-only">Filter curated targets by tier</span>
+            <select value={libraryTier} onChange={event => setLibraryTier(event.target.value as LiveStudioTier | 'All')} className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.55)] px-3 py-2.5 text-xs text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary)/.7)]" data-testid="select-live-library-tier">
+              <option value="All">All tiers</option>
+              {(Object.keys(tierMeta) as LiveStudioTier[]).map(option => <option key={option} value={option}>{option}</option>)}
+            </select>
+          </label>
+          <label>
+            <span className="sr-only">Filter curated targets by language</span>
+            <select value={libraryLanguage} onChange={event => setLibraryLanguage(event.target.value)} className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.55)] px-3 py-2.5 text-xs text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary)/.7)]" data-testid="select-live-library-language">
+              {libraryLanguages.map(option => <option key={option} value={option}>{option === 'All' ? 'All languages' : option}</option>)}
+            </select>
+          </label>
+          <label>
+            <span className="sr-only">Filter curated targets by visualizer</span>
+            <select value={libraryVisualizer} onChange={event => setLibraryVisualizer(event.target.value)} className="w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.55)] px-3 py-2.5 text-xs text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary)/.7)]" data-testid="select-live-library-visualizer">
+              {libraryVisualizers.map(option => <option key={option} value={option}>{option === 'All' ? 'All visualizers' : `${option[0].toUpperCase()}${option.slice(1)}`}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {filteredLibrary.map(challenge => {
+            const unlocked = unlockedTiers.includes(challenge.tier);
+            const selected = activeChallenge?.id === challenge.id;
+            return (
+              <button
+                key={challenge.id}
+                type="button"
+                disabled={!unlocked}
+                onClick={() => onLibrarySelect ? onLibrarySelect(challenge.id, challenge.tier) : onChallengeChange?.(challenge.id)}
+                className={cn('rounded-xl border p-3.5 text-left transition-all', selected ? 'border-[hsl(var(--primary)/.7)] bg-[hsl(var(--primary)/.09)]' : unlocked ? 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.35)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.28)]' : 'cursor-not-allowed border-[hsl(var(--border)/.5)] bg-[hsl(var(--background)/.18)] opacity-50')}
+                data-testid={`button-live-library-${challenge.id}`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold">{challenge.title}</div>
+                    <div className="mt-1 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]">{challenge.language} <span className="mx-1 text-[hsl(var(--border))]">/</span> {challenge.visualizer ?? 'terminal'}</div>
+                  </div>
+                  <span className={cn('shrink-0 rounded-md px-2 py-1 font-mono text-[9px]', selected ? 'bg-[hsl(var(--primary)/.14)] text-[hsl(var(--primary))]' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]')}>{challenge.tier}</span>
+                </div>
+                <p className="mt-3 line-clamp-2 text-[11px] leading-4 text-[hsl(var(--muted-foreground))]">{challenge.objective ?? challenge.description}</p>
+                <div className="mt-3 flex items-center justify-between font-mono text-[9px] text-[hsl(var(--muted-foreground))]">
+                  <span>{challenge.estimatedSeconds ?? 30}s target</span>
+                  <span>{unlocked ? (selected ? 'selected' : 'choose target') : 'locked'}</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {!filteredLibrary.length && <div className="mt-4 rounded-xl border border-dashed border-[hsl(var(--border))] px-4 py-6 text-center text-xs text-[hsl(var(--muted-foreground))]">No curated targets match these filters.</div>}
       </section>
 
       <div className="relative grid gap-5 xl:grid-cols-[minmax(0,1.18fr)_minmax(330px,.82fr)]">

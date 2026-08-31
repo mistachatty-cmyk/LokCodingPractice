@@ -12,8 +12,8 @@ import LiveStudio, {
   type LiveStudioTier,
 } from './LiveStudio';
 import {
+  curatedLiveStudioChallengeCatalog,
   decodeLiveStudioShare,
-  liveStudioChallengeCatalog,
   liveStudioShareUrl,
   projectLiveStudioPreview,
   resolveLiveStudioChallenge,
@@ -325,16 +325,16 @@ function NotFound() {
 }
 
 function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { totalPoints: number; initialBuild?: Partial<LiveStudioBuild> | null; onFinish: (build: LiveStudioBuild) => void; onAddNotice: (message: string) => void }) {
-  const initialTier = liveStudioChallengeCatalog.some(challenge => challenge.tier === initialBuild?.tier) ? initialBuild?.tier as LiveStudioTier : 'Small';
+  const initialTier = curatedLiveStudioChallengeCatalog.some(challenge => challenge.tier === initialBuild?.tier) ? initialBuild?.tier as LiveStudioTier : 'Small';
   const initialCadence = initialBuild?.cadence === 'Weekly' || initialBuild?.cadence === 'Monthly' ? initialBuild.cadence : 'Daily';
-  const initialChallenge = initialBuild?.challengeId ? liveStudioChallengeCatalog.find(challenge => challenge.id === initialBuild.challengeId && challenge.tier === initialTier) : undefined;
+  const initialChallenge = initialBuild?.challengeId ? curatedLiveStudioChallengeCatalog.find(challenge => challenge.id === initialBuild.challengeId && challenge.tier === initialTier) : undefined;
   const [cadence, setCadence] = useState<LiveStudioCadence>(initialCadence);
   const [tier, setTier] = useState<LiveStudioTier>(initialTier);
   const [challengeId, setChallengeId] = useState(initialChallenge?.id ?? '');
   const generatedChallenge = useMemo(() => selectLiveStudioChallenge(cadence, tier), [cadence, tier]);
   const [rotatedChallenge, setRotatedChallenge] = useState(generatedChallenge);
-  const [generationState, setGenerationState] = useState<'loading' | 'generated' | 'curated-fallback' | 'curated'>(initialChallenge ? 'curated' : 'loading');
-  const [generationMessage, setGenerationMessage] = useState(initialChallenge ? 'Shared result preserved.' : '');
+  const [generationState, setGenerationState] = useState<'loading' | 'generated' | 'curated-fallback' | 'curated'>('curated');
+  const [generationMessage, setGenerationMessage] = useState(initialChallenge ? 'Shared result preserved.' : 'Curated library target ready. No AI required.');
   const activeRotatedChallenge = rotatedChallenge.tier === tier ? rotatedChallenge : generatedChallenge;
   const activeChallenge = liveStudioChallengeCatalog.find(challenge => challenge.id === challengeId && challenge.tier === tier) ?? activeRotatedChallenge;
   const [typed, setTyped] = useState(initialBuild && initialChallenge ? initialChallenge.code : '');
@@ -366,8 +366,8 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     const fallback = selectLiveStudioChallenge(cadence, tier);
     setRotatedChallenge(fallback);
     setChallengeId('');
-    setGenerationState('loading');
-    setGenerationMessage('Validating a fresh target before the session starts.');
+    setGenerationState('curated');
+    setGenerationMessage('Curated library target ready. Optional rotation checks run in the background.');
     void resolveLiveStudioChallenge(cadence, tier).then(selection => {
       if (cancelled || startedRef.current) return;
       setRotatedChallenge(selection.challenge);
@@ -465,12 +465,23 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   const chooseChallenge = (nextChallengeId: string) => {
     preserveSharedChallengeRef.current = false;
     setChallengeId(nextChallengeId);
-    const selected = liveStudioChallengeCatalog.find(challenge => challenge.id === nextChallengeId && challenge.tier === tier);
+    const selected = curatedLiveStudioChallengeCatalog.find(challenge => challenge.id === nextChallengeId && challenge.tier === tier);
     if (selected) {
       setRotatedChallenge(selected);
       setGenerationState('curated');
       setGenerationMessage('Curated catalog target selected.');
     }
+    resetSession();
+  };
+  const chooseLibraryChallenge = (nextChallengeId: string, nextTier: LiveStudioTier) => {
+    const selected = curatedLiveStudioChallengeCatalog.find(challenge => challenge.id === nextChallengeId && challenge.tier === nextTier);
+    if (!selected) return;
+    preserveSharedChallengeRef.current = true;
+    setTier(nextTier);
+    setChallengeId(nextChallengeId);
+    setRotatedChallenge(selected);
+    setGenerationState('curated');
+    setGenerationMessage('Curated catalog target selected. No generator required.');
     resetSession();
   };
 
@@ -518,7 +529,8 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   const unlockedTiers = (Object.keys(tierMeta) as LiveStudioTier[]).filter(candidate => totalPoints >= tierMeta[candidate].unlock);
   if (finished && !unlockedTiers.includes(finished.tier)) unlockedTiers.push(finished.tier);
   return <LiveStudio
-    challenges={[rotatedChallenge, ...liveStudioChallengeCatalog.filter(challenge => challenge.tier === tier && challenge.id !== rotatedChallenge.id)]}
+    challenges={[rotatedChallenge, ...curatedLiveStudioChallengeCatalog.filter(challenge => challenge.tier === tier && challenge.id !== rotatedChallenge.id)]}
+    curatedChallenges={curatedLiveStudioChallengeCatalog}
     cadence={cadence}
     tier={tier}
     challengeId={activeChallenge.id}
@@ -534,6 +546,7 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     onCadenceChange={chooseCadence}
     onTierChange={chooseTier}
     onChallengeChange={chooseChallenge}
+    onLibrarySelect={chooseLibraryChallenge}
     onTypedChange={handleTyped}
     onReset={resetSession}
     onComplete={completeSession}

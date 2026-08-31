@@ -182,6 +182,229 @@ export const liveStudioChallengeCatalog: LiveStudioChallenge[] = [
     code: 'const board = tasks.map(task => ({ ...task, ready: true }));\nreturn board;',
     estimatedSeconds: 60,
   },
+  {
+    id: 'small-python-directory',
+    title: 'List the workspace',
+    language: 'Python',
+    tier: 'Small',
+    description: 'Turn a local directory into a readable list.',
+    objective: 'Return the visible names in a workspace.',
+    visualizer: 'tasks',
+    visualizerData: { labels: ['Open workspace', 'Read entries', 'Return names'] },
+    code: `from pathlib import Path
+names = [entry.name for entry in Path('src').iterdir()]
+return names`,
+    estimatedSeconds: 32,
+  },
+  {
+    id: 'small-react-badge',
+    title: 'Render the badge',
+    language: 'React',
+    tier: 'Small',
+    description: 'Give a small status value a clear visual home.',
+    objective: 'Return a focused status badge component.',
+    visualizer: 'palette',
+    visualizerData: { colors: ['#79e3d2', '#9ebcf4'] },
+    code: `const badge = <span className="tag">{label}</span>;
+return badge;`,
+    estimatedSeconds: 30,
+  },
+  {
+    id: 'small-sql-count',
+    title: 'Count the ready tasks',
+    language: 'SQL',
+    tier: 'Small',
+    description: 'Make a queue count explicit and bounded.',
+    objective: 'Return the number of ready tasks.',
+    visualizer: 'counter',
+    code: `SELECT COUNT(*) AS ready_count
+FROM tasks
+WHERE status = 'ready';`,
+    estimatedSeconds: 30,
+  },
+  {
+    id: 'medium-python-ready',
+    title: 'Filter ready jobs',
+    language: 'Python',
+    tier: 'Medium',
+    description: 'Keep a job queue focused on work that can move.',
+    objective: 'Return only jobs in the ready state.',
+    visualizer: 'tasks',
+    visualizerData: { labels: ['Read jobs', 'Keep ready', 'Return queue'] },
+    code: `ready = [job for job in jobs if job['state'] == 'ready']
+return ready`,
+    estimatedSeconds: 36,
+  },
+  {
+    id: 'medium-react-list',
+    title: 'Filter the visible list',
+    language: 'React',
+    tier: 'Medium',
+    description: 'Shape visible items before handing them to a list.',
+    objective: 'Render only items marked visible.',
+    visualizer: 'palette',
+    visualizerData: { colors: ['#9ebcf4', '#79e3d2', '#c6a4ed'] },
+    code: `const visible = items.filter(item => item.visible);
+return <List items={visible} />;`,
+    estimatedSeconds: 38,
+  },
+  {
+    id: 'medium-sql-team-average',
+    title: 'Order team averages',
+    language: 'SQL',
+    tier: 'Medium',
+    description: 'Turn a grouped score table into a useful ranking.',
+    objective: 'Return teams ordered by their average score.',
+    visualizer: 'rankings',
+    visualizerData: { labels: ['Platform', 'Product', 'Infra', 'Data'] },
+    code: `SELECT team, AVG(score) AS mean_score
+FROM leaderboard
+GROUP BY team
+ORDER BY mean_score DESC;`,
+    estimatedSeconds: 42,
+  },
+  {
+    id: 'hard-python-lines',
+    title: 'Read the useful lines',
+    language: 'Python',
+    tier: 'Hard',
+    description: 'Clean a file stream before showing a compact result.',
+    objective: 'Return the first ten non-empty lines.',
+    visualizer: 'terminal',
+    code: `with open(path) as stream:
+    lines = [line.strip() for line in stream if line.strip()]
+return lines[:10]`,
+    estimatedSeconds: 46,
+  },
+  {
+    id: 'hard-react-group',
+    title: 'Group the queue',
+    language: 'React',
+    tier: 'Hard',
+    description: 'Turn a flat result into explicit status lanes.',
+    objective: 'Group rows by their current status.',
+    visualizer: 'tasks',
+    visualizerData: { labels: ['Collect rows', 'Group status', 'Render lanes', 'Check empty'] },
+    code: `const grouped = rows.reduce((result, row) => {
+  (result[row.status] ??= []).push(row);
+  return result;
+}, {});
+return grouped;`,
+    estimatedSeconds: 50,
+  },
+  {
+    id: 'hard-sql-week',
+    title: 'Sum this week',
+    language: 'SQL',
+    tier: 'Hard',
+    description: 'Make a seven-day revenue signal easy to inspect.',
+    objective: 'Return totals by category for the last week.',
+    visualizer: 'counter',
+    code: `SELECT category, SUM(amount) AS total
+FROM orders
+WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
+GROUP BY category;`,
+    estimatedSeconds: 48,
+  },
+  {
+    id: 'advanced-python-normalize',
+    title: 'Normalize event order',
+    language: 'Python',
+    tier: 'Advanced',
+    description: 'Make a valid event stream deterministic and ready.',
+    objective: 'Filter valid events and sort them by creation time.',
+    visualizer: 'tasks',
+    visualizerData: { labels: ['Filter valid', 'Shape events', 'Sort timeline', 'Return ready'] },
+    code: `def normalize(events):
+    return sorted(
+        ({**event, 'ready': True} for event in events if event.get('valid')),
+        key=lambda event: event['created_at'],
+    )
+return normalize(events)`,
+    estimatedSeconds: 58,
+  },
+  {
+    id: 'advanced-react-search',
+    title: 'Keep search stable',
+    language: 'React',
+    tier: 'Advanced',
+    description: 'Keep a filtered result responsive without losing the source list.',
+    objective: 'Return search results derived from the current query.',
+    visualizer: 'palette',
+    visualizerData: { colors: ['#e798a9', '#c6a4ed', '#79e3d2'] },
+    code: `const [query, setQuery] = useState('');
+const filtered = useMemo(
+  () => records.filter(record => record.name.includes(query)),
+  [records, query],
+);
+return <SearchResults rows={filtered} />;`,
+    estimatedSeconds: 62,
+  },
+  {
+    id: 'advanced-sql-latency',
+    title: 'Rank service latency',
+    language: 'SQL',
+    tier: 'Advanced',
+    description: 'Make regional latency differences visible at a glance.',
+    objective: 'Rank regions by their median request latency.',
+    visualizer: 'rankings',
+    visualizerData: { labels: ['East', 'West', 'Central', 'Edge'] },
+    code: `SELECT region,
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_ms) AS p50
+FROM request_metrics
+GROUP BY region
+ORDER BY p50 ASC;`,
+    estimatedSeconds: 64,
+  },
+  {
+    id: 'legendary-python-reconcile',
+    title: 'Reconcile desired state',
+    language: 'Python',
+    tier: 'Legendary',
+    description: 'Compare desired and actual state before opening the board.',
+    objective: 'Return changes and whether the system is ready.',
+    visualizer: 'tasks',
+    visualizerData: { labels: ['Compare state', 'Collect changes', 'Mark ready', 'Publish result'] },
+    code: `def reconcile(desired, actual):
+    changes = [item for item in desired if item not in actual]
+    return {'changes': changes, 'ready': len(changes) == 0}
+return reconcile(desired, actual)`,
+    estimatedSeconds: 72,
+  },
+  {
+    id: 'legendary-react-polling',
+    title: 'Build stable polling',
+    language: 'React',
+    tier: 'Legendary',
+    description: 'Keep an async status view calm while requests resolve.',
+    objective: 'Return a hook that ignores stale responses.',
+    visualizer: 'palette',
+    visualizerData: { colors: ['#c6a4ed', '#e798a9', '#79e3d2'] },
+    code: `function useStablePolling(fetcher, interval = 5000) {
+  const [state, setState] = useState('idle');
+  useEffect(() => {
+    let active = true;
+    void fetcher().then(value => active && setState(value));
+    return () => { active = false; };
+  }, [fetcher]);
+  return state;
+}`,
+    estimatedSeconds: 78,
+  },
+  {
+    id: 'legendary-js-batches',
+    title: 'Settle the job batches',
+    language: 'JavaScript',
+    tier: 'Legendary',
+    description: 'Make a batch processor resilient before reporting success.',
+    objective: 'Retry every job and flatten the completed batches.',
+    visualizer: 'terminal',
+    code: `const batches = await Promise.all(
+  jobs.map(job => retry(() => process(job), { retries: 3 })),
+);
+return batches.flat();`,
+    estimatedSeconds: 70,
+  },
 ];
 
 export const liveStudioLanguages = ['TypeScript', 'JavaScript', 'SQL', 'Shell', 'Python', 'React'] as const;
@@ -243,6 +466,8 @@ export function validateLiveStudioChallenge(input: unknown, expectedTier?: LiveS
   return challenge;
 }
 
+export const curatedLiveStudioChallengeCatalog = liveStudioChallengeCatalog.map(challenge => validateLiveStudioChallenge(challenge));
+
 function pad(value: number) {
   return value.toString().padStart(2, '0');
 }
@@ -266,8 +491,8 @@ function hash(value: string) {
 }
 
 export function selectLiveStudioChallenge(cadence: LiveStudioCadence, tier: LiveStudioTier, date = new Date()) {
-  const choices = liveStudioChallengeCatalog.filter(challenge => challenge.tier === tier);
-  if (!choices.length) return liveStudioChallengeCatalog[0];
+  const choices = curatedLiveStudioChallengeCatalog.filter(challenge => challenge.tier === tier);
+  if (!choices.length) return curatedLiveStudioChallengeCatalog[0];
   const period = getLiveStudioPeriodKey(cadence, date);
   return choices[hash(`${cadence}:${tier}:${period}`) % choices.length];
 }
