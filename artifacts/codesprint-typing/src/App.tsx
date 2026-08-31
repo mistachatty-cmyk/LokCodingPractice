@@ -70,7 +70,7 @@ function AppShell({ children, theme, totalPoints, credits }: { children: ReactNo
             <div className="mt-2 text-[11px] text-[hsl(var(--muted-foreground))]">{totalPoints.toLocaleString()} total points</div>
           </div>
           <div className="flex items-center gap-3 px-2">
-            <div className="grid size-8 place-items-center rounded-lg bg-[hsl(var(--primary)/.14)] font-mono text-xs font-bold text-[hsl(var(--primary))]">CS</div>
+            <div className="grid size-8 place-items-center rounded-lg bg-[hsl(var(--primary)/.14)] font-mono text-xs font-bold text-[hsl(var(--primary))]">LK</div>
             <div><div className="text-sm font-semibold">Local learner</div><div className="font-mono text-[10px] text-[hsl(var(--muted-foreground))]">STREAK IN PROGRESS</div></div>
           </div>
         </div>
@@ -92,7 +92,7 @@ function AppShell({ children, theme, totalPoints, credits }: { children: ReactNo
 }
 
 function Brand({ compact = false }: { compact?: boolean }) {
-  return <Link href="/" className="flex items-center gap-3" data-testid="link-brand"><div className="relative grid size-9 place-items-center rounded-xl border border-[hsl(var(--primary)/.4)] bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]"><Code2 size={19} /><span className="absolute -right-1 -top-1 size-1.5 rounded-full bg-[hsl(var(--accent))]" /></div><div className={classNames(compact && 'hidden sm:block')}><div className="text-[15px] font-bold tracking-tight">CodeSprint</div><div className="font-mono text-[9px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">typing trainer</div></div></Link>;
+  return <Link href="/" className="flex items-center gap-3" data-testid="link-brand"><div className="relative grid size-9 place-items-center rounded-xl border border-[hsl(var(--primary)/.4)] bg-[hsl(var(--primary)/.1)] text-[hsl(var(--primary))]"><Code2 size={19} /><span className="absolute -right-1 -top-1 size-1.5 rounded-full bg-[hsl(var(--accent))]" /></div><div className={classNames(compact && 'hidden sm:block')}><div className="text-[15px] font-bold tracking-tight">Lokcodingpractice</div><div className="font-mono text-[9px] uppercase tracking-[.2em] text-[hsl(var(--muted-foreground))]">typing trainer</div></div></Link>;
 }
 
 function NavItem({ item, active, compact, onNavigate }: { item: { href: string; label: string; icon: LucideIcon }; active: boolean; compact?: boolean; onNavigate?: () => void }) {

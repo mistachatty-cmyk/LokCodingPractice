@@ -1,6 +1,6 @@
-# CodeSprint Typing Trainer
+# Lokcodingpractice
 
-CodeSprint is a local-first coding typing trainer that helps developers practice real syntax, track speed and accuracy, and unlock progressive difficulty tiers.
+Lokcodingpractice is a local-first coding typing trainer that helps developers practice real syntax, track speed and accuracy, and unlock progressive difficulty tiers.
 
 ## Run & Operate
 
@@ -25,7 +25,7 @@ CodeSprint is a local-first coding typing trainer that helps developers practice
 - `artifacts/codesprint-typing/src/App.tsx` — the practice experience, local persistence, seeded drills, progress, library, and workspace views.
 - `artifacts/codesprint-typing/src/index.css` — the app theme, editor-inspired surfaces, responsive layout, and motion.
 - `artifacts/codesprint-typing/.replit-artifact/artifact.toml` — web artifact routing and workflow metadata.
-- `artifacts/api-server` — shared API scaffold retained for future server-backed features; the first CodeSprint build is local-first.
+- `artifacts/api-server` — shared API scaffold retained for future server-backed features; the first Lokcodingpractice build is local-first.
 
 ## Architecture decisions
 
