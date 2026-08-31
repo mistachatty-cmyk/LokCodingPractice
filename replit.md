@@ -22,7 +22,10 @@ Lokcodingpractice is a local-first coding typing trainer that helps developers p
 
 ## Where things live
 
-- `artifacts/codesprint-typing/src/App.tsx` — the practice experience, local persistence, seeded drills, progress, library, and workspace views.
+- `artifacts/codesprint-typing/src/App.tsx` — the practice experience, Live Studio route, local persistence, seeded drills, progress, library, and workspace views.
+- `artifacts/codesprint-typing/src/LiveStudio.tsx` — the responsive live typing surface, safe visualizer presentation, completion state, and share controls.
+- `artifacts/codesprint-typing/src/liveStudioData.ts` — deterministic cadence/tier challenge selection, safe preview projections, and share payload helpers.
+- `docs/live-code-visualizer-design.md` — Live Studio product contract, safety model, sharing design, and future-generation roadmap.
 - `artifacts/codesprint-typing/src/index.css` — the app theme, editor-inspired surfaces, responsive layout, and motion.
 - `artifacts/codesprint-typing/.replit-artifact/artifact.toml` — web artifact routing and workflow metadata.
 - `artifacts/api-server` — shared API scaffold retained for future server-backed features; the first Lokcodingpractice build is local-first.
@@ -36,9 +39,11 @@ Lokcodingpractice is a local-first coding typing trainer that helps developers p
 ## Product
 
 - Practice real JavaScript, TypeScript, React, shell, SQL, and Python syntax across Small, Medium, Hard, Advanced, and Legendary tiers.
+- Build scheduled Daily, Weekly, and Monthly Live Studio challenges while watching a safe counter, palette, task, ranking, or terminal projection update as code is typed.
 - Measure WPM, CPM, accuracy, elapsed time, errors, points, and credits for each completed run.
 - Add, search, filter, select, and delete personal code snippets locally.
 - Review run history and progression insights, and customize between multiple palettes and typing preferences.
+- Share completed Live Studio results through the device share sheet, copied deep links, or public social share links.
 
 ## User preferences
 

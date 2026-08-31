@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
+import { getLiveStudioPeriodKey, projectLiveStudioPreview, selectLiveStudioChallenge } from './liveStudioData';
 
 const localSnippet = {
   id: 'custom-regression-drill',
@@ -127,5 +128,51 @@ describe('local library and workspace regressions', () => {
     fireEvent.click(screen.getByTestId('button-theme-mint'));
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('148 56% 72%');
     await waitFor(() => expect(JSON.parse(window.localStorage.getItem('codesprint_theme') ?? 'null')).toBe('mint'));
+  });
+});
+
+describe('live code visualizer studio', () => {
+  beforeEach(resetBrowser);
+
+  it('selects a stable scheduled challenge and projects partial code safely', () => {
+    const date = new Date(2026, 7, 31, 12, 0, 0);
+    expect(selectLiveStudioChallenge('Daily', 'Small', date).id).toBe(selectLiveStudioChallenge('Daily', 'Small', date).id);
+    expect(getLiveStudioPeriodKey('Weekly', date)).toBe('2026-08-31');
+    expect(getLiveStudioPeriodKey('Monthly', date)).toBe('2026-08');
+
+    const challenge = selectLiveStudioChallenge('Daily', 'Small', date);
+    const partial = projectLiveStudioPreview(challenge, challenge.code.slice(0, 3));
+    const complete = projectLiveStudioPreview(challenge, challenge.code);
+    expect(partial.status).not.toBe(complete.status);
+    expect(partial.kind).toBe(challenge.visualizer);
+    expect(complete.status).toMatch(/ready|complete|reached|inspect|settle|share/i);
+  });
+
+  it('creates and persists a live build, then exposes share fallbacks', async () => {
+    render(<App />);
+    navigate('link-nav-live-studio');
+
+    fireEvent.click(screen.getByTestId('button-live-start'));
+    const challenge = selectLiveStudioChallenge('Daily', 'Small');
+    const input = screen.getByTestId('input-live-code');
+    fireEvent.change(input, { target: { value: challenge.code.slice(0, 4) } });
+    expect(screen.getByTestId('text-live-preview-output')).toBeTruthy();
+    expect(screen.getByTestId('text-live-safety-note')).toBeTruthy();
+
+    fireEvent.change(input, { target: { value: challenge.code } });
+    fireEvent.click(screen.getByTestId('button-live-complete'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('button-live-share')).toBeTruthy();
+      expect(JSON.parse(window.localStorage.getItem('codesprint_live_builds') ?? '[]')).toHaveLength(1);
+    });
+    expect(screen.getByTestId('link-live-share-x').getAttribute('href')).toContain('twitter.com/intent/tweet');
+    expect(screen.getByTestId('link-live-share-linkedin').getAttribute('href')).toContain('linkedin.com/sharing');
+
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    fireEvent.click(screen.getByTestId('button-live-copy-share'));
+    await waitFor(() => expect(screen.getByTestId('status-live-share').textContent).toContain('copied'));
+    expect(writeText).toHaveBeenCalledTimes(1);
   });
 });

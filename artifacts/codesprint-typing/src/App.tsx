@@ -7,6 +7,18 @@ import {
   Trophy, WandSparkles, X, Zap,
 } from 'lucide-react';
 import { type LucideIcon } from 'lucide-react';
+import LiveStudio, {
+  type LiveStudioCadence,
+  type LiveStudioTier,
+} from './LiveStudio';
+import {
+  decodeLiveStudioShare,
+  liveStudioChallengeCatalog,
+  liveStudioShareUrl,
+  projectLiveStudioPreview,
+  selectLiveStudioChallenge,
+  type LiveStudioBuild,
+} from './liveStudioData';
 
 type Tier = 'Small' | 'Medium' | 'Hard' | 'Advanced' | 'Legendary';
 type Snippet = { id: string; title: string; language: string; tier: Tier; description: string; code: string; custom?: boolean };
@@ -107,6 +119,7 @@ const seededSnippets: Snippet[] = [
 
 const navItems: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/', label: 'Practice', icon: Keyboard },
+  { href: '/studio', label: 'Live Studio', icon: Sparkles },
   { href: '/progress', label: 'Progress', icon: BarChart3 },
   { href: '/snippets', label: 'Snippet library', icon: BookOpen },
   { href: '/themes', label: 'Workspace', icon: WandSparkles },
@@ -269,12 +282,13 @@ function FinishState({ run, onAgain, onExit }: { run: Run; onAgain: () => void; 
   return <div className="rise mx-auto max-w-4xl"><div className="mb-10 text-center"><div className="mx-auto mb-5 grid size-16 place-items-center rounded-2xl border border-[hsl(var(--accent)/.4)] bg-[hsl(var(--accent)/.12)] text-[hsl(var(--accent))]"><Trophy size={28} /></div><div className="font-mono text-[10px] uppercase tracking-[.25em] text-[hsl(var(--accent))]">Run complete</div><h1 className="mt-3 text-4xl font-bold tracking-[-.05em] md:text-6xl">Good work. Again?</h1><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">{run.snippetTitle} <span className="mx-2">·</span> {run.tier} tier <span className="mx-2">·</span> {new Date(run.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p></div><div className="grid gap-3 sm:grid-cols-4"><Metric icon={Gauge} label="WPM" value={run.wpm.toString()} /><Metric icon={Activity} label="CPM" value={run.cpm.toString()} accent="accent" /><Metric icon={Target} label="Accuracy" value={`${run.accuracy}%`} /><Metric icon={Zap} label="Earned" value={`+${run.points}`} detail="points" accent="accent" /></div><div className="mt-10 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.55)] p-6 text-center"><div className="font-mono text-xs text-[hsl(var(--muted-foreground))]">CREDITS ADDED TO YOUR ROOM</div><div className="mt-2 text-3xl font-bold text-[hsl(var(--accent))]">+{Math.max(3, Math.round(run.points / 18))} credits</div><div className="mt-8 flex flex-wrap justify-center gap-3"><button onClick={onAgain} className="flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-bold text-[hsl(var(--primary-foreground))]" data-testid="button-run-again"><RotateCcw size={16} /> Run it again</button><button onClick={onExit} className="rounded-xl border border-[hsl(var(--border))] px-5 py-3 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-finish-done">Back to practice</button></div></div></div>;
 }
 
-function Progress({ runs, totalPoints, credits }: { runs: Run[]; totalPoints: number; credits: number }) {
-  const average = runs.length ? Math.round(runs.reduce((sum, run) => sum + run.wpm, 0) / runs.length) : 0;
-  const accuracy = runs.length ? Math.round(runs.reduce((sum, run) => sum + run.accuracy, 0) / runs.length * 10) / 10 : 0;
-  const best = runs.length ? Math.max(...runs.map(run => run.wpm)) : 0;
-  const counts = (Object.keys(tierMeta) as Tier[]).map(tier => ({ tier, count: runs.filter(run => run.tier === tier).length }));
-  return <div className="rise"><PageIntro eyebrow="Insights / 02" title="Your signal, over time." description="Progress is the quiet accumulation of clean repetitions. Here is what your last sessions are teaching you." action={<div className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.5)] px-4 py-3"><Trophy size={16} className="text-[hsl(var(--accent))]" /><span className="font-mono text-xs">{totalPoints.toLocaleString()} pts</span></div>} /><div className="grid gap-3 md:grid-cols-4"><Metric icon={Gauge} label="Best WPM" value={best.toString()} detail="all time" /><Metric icon={Activity} label="Average WPM" value={average.toString()} detail="across all runs" accent="accent" /><Metric icon={Target} label="Avg accuracy" value={`${accuracy}%`} detail="keep above 95%" /><Metric icon={Zap} label="Credits" value={credits.toLocaleString()} detail="available to use" accent="accent" /></div><div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_.65fr]"><div className="glass-line rounded-2xl border p-6 md:p-8"><div className="flex items-center justify-between"><div><h2 className="font-semibold">WPM trajectory</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Your last {Math.min(runs.length, 12)} recorded runs</p></div><Activity size={17} className="text-[hsl(var(--primary))]" /></div>{runs.length ? <div className="mt-10 flex h-48 items-end gap-2 border-b border-l border-[hsl(var(--border))] px-3 pb-0">{runs.slice(-12).map((run, index) => <div key={run.id} className="group flex h-full flex-1 flex-col justify-end gap-2"><div className="text-center font-mono text-[9px] text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity group-hover:opacity-100">{run.wpm}</div><div className="w-full rounded-t-md bg-[hsl(var(--primary)/.7)] transition-all group-hover:bg-[hsl(var(--primary))]" style={{ height: `${Math.max(8, Math.min(100, run.wpm / Math.max(best, 1) * 100))}%` }} /><div className="text-center font-mono text-[9px] text-[hsl(var(--muted-foreground))]">{index + 1}</div></div>)}</div> : <EmptyState icon={BarChart3} title="Your chart starts with one run." description="Complete a practice session to see your rhythm take shape." compact />}</div><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] p-6"><h2 className="font-semibold">Tier readiness</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Repetition unlocks range.</p><div className="mt-7 space-y-5">{counts.map(({ tier: item, count }) => <div key={item}><div className="mb-2 flex justify-between text-xs"><span>{item}</span><span className="font-mono text-[hsl(var(--muted-foreground))]">{count} {count === 1 ? 'run' : 'runs'}</span></div><div className="h-1.5 rounded-full bg-[hsl(var(--muted))]"><div className="h-full rounded-full" style={{ width: `${Math.min(100, count * 22)}%`, backgroundColor: tierMeta[item].color }} /></div></div>)}</div></div></div><div className="mt-8"><div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">Recent runs</h2><span className="font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">{runs.length} total</span></div>{runs.length ? <div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))]">{runs.slice().reverse().slice(0, 8).map(run => <div key={run.id} className="flex flex-wrap items-center gap-4 border-b border-[hsl(var(--border))] px-5 py-4 last:border-0"><div className="grid size-8 place-items-center rounded-lg bg-[hsl(var(--primary)/.1)] font-mono text-[10px] text-[hsl(var(--primary))]">{run.tier.slice(0, 2).toUpperCase()}</div><div className="min-w-[150px] flex-1"><div className="text-sm font-medium">{run.snippetTitle}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{new Date(run.date).toLocaleDateString([], { month: 'short', day: 'numeric' })} · {formatTime(run.seconds)}</div></div><div className="text-right"><div className="font-mono text-sm">{run.wpm} <span className="text-[10px] text-[hsl(var(--muted-foreground))]">WPM</span></div><div className="text-[11px] text-[hsl(var(--primary))]">{run.accuracy}% accuracy</div></div><div className="font-mono text-xs text-[hsl(var(--accent))]">+{run.points}</div></div>)}</div> : <EmptyState icon={Clock3} title="No sessions recorded." description="A practice run takes less than two minutes. Make one count." />}</div></div>;
+function Progress({ runs, liveBuilds, totalPoints, credits }: { runs: Run[]; liveBuilds: LiveStudioBuild[]; totalPoints: number; credits: number }) {
+  const allAttempts = [...runs, ...liveBuilds];
+  const average = allAttempts.length ? Math.round(allAttempts.reduce((sum, run) => sum + run.wpm, 0) / allAttempts.length) : 0;
+  const accuracy = allAttempts.length ? Math.round(allAttempts.reduce((sum, run) => sum + run.accuracy, 0) / allAttempts.length * 10) / 10 : 0;
+  const best = allAttempts.length ? Math.max(...allAttempts.map(run => run.wpm)) : 0;
+  const counts = (Object.keys(tierMeta) as Tier[]).map(tier => ({ tier, count: runs.filter(run => run.tier === tier).length + liveBuilds.filter(build => build.tier === tier).length }));
+  return <div className="rise"><PageIntro eyebrow="Insights / 02" title="Your signal, over time." description="Progress is the quiet accumulation of clean repetitions. Here is what your last sessions are teaching you." action={<div className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.5)] px-4 py-3"><Trophy size={16} className="text-[hsl(var(--accent))]" /><span className="font-mono text-xs">{totalPoints.toLocaleString()} pts</span></div>} /><div className="grid gap-3 md:grid-cols-4"><Metric icon={Gauge} label="Best WPM" value={best.toString()} detail="all time" /><Metric icon={Activity} label="Average WPM" value={average.toString()} detail="across all runs" accent="accent" /><Metric icon={Target} label="Avg accuracy" value={`${accuracy}%`} detail="keep above 95%" /><Metric icon={Zap} label="Credits" value={credits.toLocaleString()} detail="available to use" accent="accent" /></div><div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_.65fr]"><div className="glass-line rounded-2xl border p-6 md:p-8"><div className="flex items-center justify-between"><div><h2 className="font-semibold">WPM trajectory</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Your last {Math.min(runs.length, 12)} recorded runs</p></div><Activity size={17} className="text-[hsl(var(--primary))]" /></div>{runs.length ? <div className="mt-10 flex h-48 items-end gap-2 border-b border-l border-[hsl(var(--border))] px-3 pb-0">{runs.slice(-12).map((run, index) => <div key={run.id} className="group flex h-full flex-1 flex-col justify-end gap-2"><div className="text-center font-mono text-[9px] text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity group-hover:opacity-100">{run.wpm}</div><div className="w-full rounded-t-md bg-[hsl(var(--primary)/.7)] transition-all group-hover:bg-[hsl(var(--primary))]" style={{ height: `${Math.max(8, Math.min(100, run.wpm / Math.max(best, 1) * 100))}%` }} /><div className="text-center font-mono text-[9px] text-[hsl(var(--muted-foreground))]">{index + 1}</div></div>)}</div> : <EmptyState icon={BarChart3} title="Your chart starts with one run." description="Complete a practice session to see your rhythm take shape." compact />}</div><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] p-6"><h2 className="font-semibold">Tier readiness</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Repetition unlocks range.</p><div className="mt-7 space-y-5">{counts.map(({ tier: item, count }) => <div key={item}><div className="mb-2 flex justify-between text-xs"><span>{item}</span><span className="font-mono text-[hsl(var(--muted-foreground))]">{count} {count === 1 ? 'run' : 'runs'}</span></div><div className="h-1.5 rounded-full bg-[hsl(var(--muted))]"><div className="h-full rounded-full" style={{ width: `${Math.min(100, count * 22)}%`, backgroundColor: tierMeta[item].color }} /></div></div>)}</div></div></div><div className="mt-8"><div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">Recent runs</h2><span className="font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">{runs.length} total</span></div>{runs.length ? <div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))]">{runs.slice().reverse().slice(0, 8).map(run => <div key={run.id} className="flex flex-wrap items-center gap-4 border-b border-[hsl(var(--border))] px-5 py-4 last:border-0"><div className="grid size-8 place-items-center rounded-lg bg-[hsl(var(--primary)/.1)] font-mono text-[10px] text-[hsl(var(--primary))]">{run.tier.slice(0, 2).toUpperCase()}</div><div className="min-w-[150px] flex-1"><div className="text-sm font-medium">{run.snippetTitle}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{new Date(run.date).toLocaleDateString([], { month: 'short', day: 'numeric' })} · {formatTime(run.seconds)}</div></div><div className="text-right"><div className="font-mono text-sm">{run.wpm} <span className="text-[10px] text-[hsl(var(--muted-foreground))]">WPM</span></div><div className="text-[11px] text-[hsl(var(--primary))]">{run.accuracy}% accuracy</div></div><div className="font-mono text-xs text-[hsl(var(--accent))]">+{run.points}</div></div>)}</div> : <EmptyState icon={Clock3} title="No sessions recorded." description="A practice run takes less than two minutes. Make one count." />}</div>{liveBuilds.length > 0 && <div className="mt-8"><div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">Live builds</h2><span className="font-mono text-[10px] uppercase tracking-[.15em] text-[hsl(var(--muted-foreground))]">{liveBuilds.length} created</span></div><div className="grid gap-3 md:grid-cols-2">{liveBuilds.slice().reverse().slice(0, 6).map(build => <div key={build.id} className="rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] px-5 py-4" data-testid={`row-live-build-${build.id}`}><div className="flex items-start justify-between gap-3"><div><div className="text-sm font-semibold">{build.title}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{build.cadence} · {build.tier} · {new Date(build.date).toLocaleDateString([], { month: 'short', day: 'numeric' })}</div></div><span className="font-mono text-xs text-[hsl(var(--accent))]">+{build.points}</span></div><div className="mt-3 flex items-center gap-3 font-mono text-[10px] text-[hsl(var(--muted-foreground))]"><span>{build.wpm} WPM</span><span>{build.accuracy}% accuracy</span><span>{formatTime(build.seconds)}</span></div></div>)}</div></div>}</div>;
 }
 
 function Snippets({ snippets, onAdd, onDelete, onAddNotice }: { snippets: Snippet[]; onAdd: (snippet: Snippet) => void; onDelete: (id: string) => void; onAddNotice: (message: string) => void }) {
@@ -309,6 +323,192 @@ function NotFound() {
   return <EmptyState icon={CircleHelp} title="That room does not exist." description="Return to practice and start a useful run." action={<Link href="/" className="text-sm text-[hsl(var(--primary))]" data-testid="link-not-found-home">Go to practice <ArrowRight size={14} className="ml-1 inline" /></Link>} />;
 }
 
+function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { totalPoints: number; initialBuild?: Partial<LiveStudioBuild> | null; onFinish: (build: LiveStudioBuild) => void; onAddNotice: (message: string) => void }) {
+  const initialTier = liveStudioChallengeCatalog.some(challenge => challenge.tier === initialBuild?.tier) ? initialBuild?.tier as LiveStudioTier : 'Small';
+  const initialCadence = initialBuild?.cadence === 'Weekly' || initialBuild?.cadence === 'Monthly' ? initialBuild.cadence : 'Daily';
+  const initialChallenge = initialBuild?.challengeId ? liveStudioChallengeCatalog.find(challenge => challenge.id === initialBuild.challengeId && challenge.tier === initialTier) : undefined;
+  const [cadence, setCadence] = useState<LiveStudioCadence>(initialCadence);
+  const [tier, setTier] = useState<LiveStudioTier>(initialTier);
+  const [challengeId, setChallengeId] = useState(initialChallenge?.id ?? '');
+  const generatedChallenge = useMemo(() => selectLiveStudioChallenge(cadence, tier), [cadence, tier]);
+  const activeChallenge = liveStudioChallengeCatalog.find(challenge => challenge.id === challengeId && challenge.tier === tier) ?? generatedChallenge;
+  const [typed, setTyped] = useState(initialBuild && initialChallenge ? initialChallenge.code : '');
+  const [errors, setErrors] = useState(0);
+  const [started, setStarted] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [finished, setFinished] = useState<LiveStudioBuild | null>(initialBuild && initialChallenge ? {
+    id: initialBuild.id ?? `shared-${initialBuild.challengeId}`,
+    challengeId: initialBuild.challengeId ?? initialChallenge.id,
+    title: initialBuild.title ?? initialChallenge.title,
+    tier: initialTier,
+    cadence: initialCadence,
+    wpm: initialBuild.wpm ?? 0,
+    cpm: initialBuild.cpm ?? 0,
+    accuracy: initialBuild.accuracy ?? 100,
+    seconds: initialBuild.seconds ?? 0,
+    points: initialBuild.points ?? 0,
+    date: initialBuild.date ?? new Date().toISOString(),
+    preview: initialBuild.preview ?? projectLiveStudioPreview(initialChallenge, initialChallenge.code),
+  } : null);
+  const startedAt = useRef<number | null>(null);
+  const [shareStatus, setShareStatus] = useState('');
+
+  useEffect(() => {
+    if (!started) return;
+    const timer = window.setInterval(() => {
+      if (startedAt.current) setElapsed((Date.now() - startedAt.current) / 1000);
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [started]);
+
+  const resetSession = () => {
+    setTyped('');
+    setErrors(0);
+    setElapsed(0);
+    setStarted(false);
+    setFinished(null);
+    setShareStatus('');
+    startedAt.current = null;
+  };
+
+  const startSession = () => {
+    resetSession();
+    setStarted(true);
+    startedAt.current = Date.now();
+  };
+
+  const handleTyped = (value: string) => {
+    if (!started || finished) return;
+    const next = value.slice(0, activeChallenge.code.length);
+    if (next.length < typed.length) {
+      setTyped(next);
+      return;
+    }
+    let newErrors = 0;
+    for (let index = typed.length; index < next.length; index += 1) {
+      if (next[index] !== activeChallenge.code[index]) newErrors += 1;
+    }
+    if (newErrors) setErrors(previous => previous + newErrors);
+    setTyped(next);
+  };
+
+  const completeSession = () => {
+    if (typed !== activeChallenge.code || finished) return;
+    const seconds = Math.max((Date.now() - (startedAt.current ?? Date.now())) / 1000, 1);
+    const minutes = seconds / 60;
+    const correct = Math.max(0, activeChallenge.code.length - errors);
+    const wpm = Math.max(0, Math.round((correct / 5) / minutes));
+    const cpm = Math.max(0, Math.round(correct / minutes));
+    const accuracy = Math.max(0, Math.round((activeChallenge.code.length / (activeChallenge.code.length + errors)) * 1000) / 10);
+    const points = Math.round(tierMeta[tier].points * (accuracy / 100) + wpm * 1.8);
+    const build: LiveStudioBuild = {
+      id: crypto.randomUUID(),
+      challengeId: activeChallenge.id,
+      title: activeChallenge.title,
+      tier,
+      cadence,
+      wpm,
+      cpm,
+      accuracy,
+      seconds: Math.round(seconds),
+      points,
+      date: new Date().toISOString(),
+      preview: projectLiveStudioPreview(activeChallenge, activeChallenge.code),
+    };
+    setStarted(false);
+    setFinished(build);
+    setElapsed(build.seconds);
+    startedAt.current = null;
+    onFinish(build);
+  };
+
+  const chooseCadence = (nextCadence: LiveStudioCadence) => {
+    setCadence(nextCadence);
+    setChallengeId('');
+    resetSession();
+  };
+  const chooseTier = (nextTier: LiveStudioTier) => {
+    setTier(nextTier);
+    setChallengeId('');
+    resetSession();
+  };
+  const chooseChallenge = (nextChallengeId: string) => {
+    setChallengeId(nextChallengeId);
+    resetSession();
+  };
+
+  const liveWpm = elapsed ? Math.max(0, Math.round(((typed.length - errors) / 5) / (elapsed / 60))) : 0;
+  const liveAccuracy = typed.length ? Math.max(0, Math.round(((typed.length - errors) / typed.length) * 100)) : 100;
+  const preview = finished?.preview ?? projectLiveStudioPreview(activeChallenge, typed);
+  const shareUrl = finished ? liveStudioShareUrl(finished, window.location.href) : '';
+  const shareText = finished ? `I built "${finished.title}" in Lokcodingpractice — ${finished.wpm} WPM at ${finished.accuracy}% accuracy.` : '';
+
+  const copyShare = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareStatus('Share link copied.');
+    } catch {
+      const input = document.createElement('textarea');
+      input.value = shareUrl;
+      input.setAttribute('readonly', '');
+      input.style.position = 'fixed';
+      input.style.opacity = '0';
+      document.body.appendChild(input);
+      input.select();
+      const copied = document.execCommand('copy');
+      input.remove();
+      setShareStatus(copied ? 'Share link copied.' : 'Copy was blocked. Use the social links below.');
+    }
+  };
+
+  const shareResult = async () => {
+    if (!finished) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: finished.title, text: shareText, url: shareUrl });
+        setShareStatus('Share sheet opened.');
+      } else {
+        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+        setShareStatus('Share text and link copied.');
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      setShareStatus('Share sheet unavailable. Use Copy link or a social link.');
+    }
+  };
+
+  const unlockedTiers = (Object.keys(tierMeta) as LiveStudioTier[]).filter(candidate => totalPoints >= tierMeta[candidate].unlock);
+  if (finished && !unlockedTiers.includes(finished.tier)) unlockedTiers.push(finished.tier);
+  return <LiveStudio
+    challenges={liveStudioChallengeCatalog.filter(challenge => challenge.tier === tier)}
+    cadence={cadence}
+    tier={tier}
+    challengeId={activeChallenge.id}
+    typedValue={finished ? activeChallenge.code : typed}
+    safePreview={preview}
+    result={finished ? { id: finished.id, challengeId: finished.challengeId, title: finished.title, tier: finished.tier, cadence: finished.cadence, wpm: finished.wpm, accuracy: finished.accuracy, elapsedSeconds: finished.seconds, points: finished.points, completedAt: finished.date } : null}
+    isRunning={started}
+    elapsedSeconds={finished?.seconds ?? elapsed}
+    wpm={finished?.wpm ?? liveWpm}
+    accuracy={finished?.accuracy ?? liveAccuracy}
+    errorCount={errors}
+    unlockedTiers={unlockedTiers}
+    onCadenceChange={chooseCadence}
+    onTierChange={chooseTier}
+    onChallengeChange={chooseChallenge}
+    onTypedChange={handleTyped}
+    onReset={resetSession}
+    onComplete={completeSession}
+    onShare={shareResult}
+    onCopyShare={copyShare}
+    onStart={startSession}
+    shareUrl={shareUrl}
+    shareText={shareText}
+    shareStatus={shareStatus}
+  />;
+}
+
 function RouterApp() {
   const [theme, setTheme] = useState<ThemeName>(() => {
     const saved = readStorage<string>('codesprint_theme', 'midnight');
@@ -316,10 +516,12 @@ function RouterApp() {
   });
   const [customSnippets, setCustomSnippets] = useState<Snippet[]>(() => readStorage<Snippet[]>('codesprint_custom_snippets', []));
   const [runs, setRuns] = useState<Run[]>(() => readStorage<Run[]>('codesprint_runs', []));
+  const [liveBuilds, setLiveBuilds] = useState<LiveStudioBuild[]>(() => readStorage<LiveStudioBuild[]>('codesprint_live_builds', []));
+  const [sharedLiveBuild] = useState<Partial<LiveStudioBuild> | null>(() => decodeLiveStudioShare(new URLSearchParams(window.location.search).get('share')));
   const [notice, setNotice] = useState('');
   const allSnippets = useMemo(() => [...seededSnippets, ...customSnippets], [customSnippets]);
-  const totalPoints = runs.reduce((sum, run) => sum + run.points, 0);
-  const credits = runs.reduce((sum, run) => sum + Math.max(3, Math.round(run.points / 18)), 0);
+  const totalPoints = runs.reduce((sum, run) => sum + run.points, 0) + liveBuilds.reduce((sum, build) => sum + build.points, 0);
+  const credits = runs.reduce((sum, run) => sum + Math.max(3, Math.round(run.points / 18)), 0) + liveBuilds.reduce((sum, build) => sum + Math.max(3, Math.round(build.points / 18)), 0);
   useEffect(() => {
     window.localStorage.setItem('codesprint_theme', JSON.stringify(theme));
     const root = document.documentElement;
@@ -330,11 +532,13 @@ function RouterApp() {
   }, [theme]);
   useEffect(() => { window.localStorage.setItem('codesprint_custom_snippets', JSON.stringify(customSnippets)); }, [customSnippets]);
   useEffect(() => { window.localStorage.setItem('codesprint_runs', JSON.stringify(runs)); }, [runs]);
+  useEffect(() => { window.localStorage.setItem('codesprint_live_builds', JSON.stringify(liveBuilds)); }, [liveBuilds]);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 3000); return () => window.clearTimeout(timer); }, [notice]);
   const finish = (run: Run) => { setRuns(previous => [...previous, run]); setNotice(`Run saved. +${run.points} points added.`); };
+  const finishLiveBuild = (build: LiveStudioBuild) => { setLiveBuilds(previous => [...previous, build]); setNotice(`Live result created. +${build.points} points added.`); };
   const addSnippet = (snippet: Snippet) => setCustomSnippets(previous => [...previous, snippet]);
   const deleteSnippet = (id: string) => { if (window.confirm('Delete this local snippet?')) setCustomSnippets(previous => previous.filter(item => item.id !== id)); };
-  return <AppShell theme={theme} totalPoints={totalPoints} credits={credits}><Switch><Route path="/">{() => <Practice snippets={allSnippets} runs={runs} totalPoints={totalPoints} onFinish={finish} onAddNotice={setNotice} />}</Route><Route path="/progress">{() => <Progress runs={runs} totalPoints={totalPoints} credits={credits} />}</Route><Route path="/snippets">{() => <Snippets snippets={allSnippets} onAdd={addSnippet} onDelete={deleteSnippet} onAddNotice={setNotice} />}</Route><Route path="/themes">{() => <Themes theme={theme} setTheme={setTheme} />}</Route><Route>{() => <NotFound />}</Route></Switch>{notice && <div className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card))] px-4 py-3 text-xs text-[hsl(var(--foreground))] shadow-2xl md:bottom-7" role="status" data-testid="status-notice"><Check size={15} className="text-[hsl(var(--primary))]" />{notice}</div>}</AppShell>;
+  return <AppShell theme={theme} totalPoints={totalPoints} credits={credits}><Switch><Route path="/">{() => <Practice snippets={allSnippets} runs={runs} totalPoints={totalPoints} onFinish={finish} onAddNotice={setNotice} />}</Route><Route path="/studio">{() => <LiveStudioPage totalPoints={totalPoints} initialBuild={sharedLiveBuild} onFinish={finishLiveBuild} onAddNotice={setNotice} />}</Route><Route path="/progress">{() => <Progress runs={runs} liveBuilds={liveBuilds} totalPoints={totalPoints} credits={credits} />}</Route><Route path="/snippets">{() => <Snippets snippets={allSnippets} onAdd={addSnippet} onDelete={deleteSnippet} onAddNotice={setNotice} />}</Route><Route path="/themes">{() => <Themes theme={theme} setTheme={setTheme} />}</Route><Route>{() => <NotFound />}</Route></Switch>{notice && <div className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card))] px-4 py-3 text-xs text-[hsl(var(--foreground))] shadow-2xl md:bottom-7" role="status" data-testid="status-notice"><Check size={15} className="text-[hsl(var(--primary))]" />{notice}</div>}</AppShell>;
 }
 
 export default function App() {
