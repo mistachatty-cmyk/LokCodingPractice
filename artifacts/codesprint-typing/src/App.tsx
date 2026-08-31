@@ -12,6 +12,79 @@ type Tier = 'Small' | 'Medium' | 'Hard' | 'Advanced' | 'Legendary';
 type Snippet = { id: string; title: string; language: string; tier: Tier; description: string; code: string; custom?: boolean };
 type Run = { id: string; snippetTitle: string; tier: Tier; wpm: number; cpm: number; accuracy: number; seconds: number; points: number; date: string };
 type ThemeName = 'midnight' | 'ember' | 'mint';
+type ThemeTokens = Record<string, string>;
+
+const themeTokens: Record<ThemeName, ThemeTokens> = {
+  midnight: {
+    '--background': '218 26% 8%',
+    '--foreground': '210 22% 90%',
+    '--border': '213 18% 18%',
+    '--input': '213 18% 18%',
+    '--ring': '168 66% 70%',
+    '--card': '216 23% 11%',
+    '--card-foreground': '210 22% 90%',
+    '--card-border': '213 18% 19%',
+    '--popover': '216 24% 13%',
+    '--popover-foreground': '210 22% 90%',
+    '--popover-border': '213 18% 21%',
+    '--primary': '168 66% 70%',
+    '--primary-foreground': '218 26% 8%',
+    '--secondary': '216 20% 15%',
+    '--secondary-foreground': '210 20% 78%',
+    '--muted': '216 18% 14%',
+    '--muted-foreground': '215 12% 56%',
+    '--accent': '36 82% 69%',
+    '--accent-foreground': '218 26% 8%',
+    '--destructive': '5 72% 67%',
+    '--destructive-foreground': '218 26% 8%',
+  },
+  ember: {
+    '--background': '12 25% 8%',
+    '--foreground': '30 34% 92%',
+    '--border': '15 20% 22%',
+    '--input': '15 20% 22%',
+    '--ring': '12 78% 72%',
+    '--card': '14 24% 12%',
+    '--card-foreground': '30 34% 92%',
+    '--card-border': '15 20% 24%',
+    '--popover': '14 25% 15%',
+    '--popover-foreground': '30 34% 92%',
+    '--popover-border': '15 20% 27%',
+    '--primary': '12 78% 72%',
+    '--primary-foreground': '12 25% 8%',
+    '--secondary': '15 20% 17%',
+    '--secondary-foreground': '26 24% 78%',
+    '--muted': '15 18% 16%',
+    '--muted-foreground': '24 13% 58%',
+    '--accent': '39 86% 70%',
+    '--accent-foreground': '12 25% 8%',
+    '--destructive': '2 76% 68%',
+    '--destructive-foreground': '12 25% 8%',
+  },
+  mint: {
+    '--background': '165 25% 8%',
+    '--foreground': '150 28% 91%',
+    '--border': '164 18% 20%',
+    '--input': '164 18% 20%',
+    '--ring': '148 56% 72%',
+    '--card': '164 22% 12%',
+    '--card-foreground': '150 28% 91%',
+    '--card-border': '164 18% 23%',
+    '--popover': '164 24% 15%',
+    '--popover-foreground': '150 28% 91%',
+    '--popover-border': '164 18% 26%',
+    '--primary': '148 56% 72%',
+    '--primary-foreground': '165 25% 8%',
+    '--secondary': '164 19% 17%',
+    '--secondary-foreground': '150 22% 78%',
+    '--muted': '164 17% 16%',
+    '--muted-foreground': '155 13% 57%',
+    '--accent': '75 48% 68%',
+    '--accent-foreground': '165 25% 8%',
+    '--destructive': '5 68% 68%',
+    '--destructive-foreground': '165 25% 8%',
+  },
+};
 
 const tierMeta: Record<Tier, { tag: string; subtitle: string; color: string; points: number; unlock: number }> = {
   Small: { tag: '01', subtitle: 'Warm-up patterns', color: '#7ee7d8', points: 50, unlock: 0 },
@@ -176,7 +249,7 @@ function Practice({ snippets, runs, totalPoints, onFinish, onAddNotice }: { snip
   if (started && activeSnippet) return <div className="rise">
     <div className="mb-7 flex flex-wrap items-center justify-between gap-4"><div><div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--primary))]"><span className="size-1.5 rounded-full bg-[hsl(var(--primary))] blink" /> LIVE RUN <span className="text-[hsl(var(--muted-foreground))]">/ {activeSnippet.language}</span></div><h1 className="mt-2 text-2xl font-bold tracking-tight">{activeSnippet.title}</h1></div><button onClick={reset} className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-abandon-run"><X size={14} /> End run</button></div>
     <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4"><Metric icon={Gauge} label="WPM" value={elapsed ? Math.round(((typed.length - errors) / 5) / (elapsed / 60)).toString() : '0'} detail="words / minute" /><Metric icon={Activity} label="CPM" value={elapsed ? Math.round((typed.length - errors) / (elapsed / 60)).toString() : '0'} detail="characters / minute" accent="accent" /><Metric icon={Target} label="Accuracy" value={`${typed.length ? Math.round(((typed.length - errors) / typed.length) * 100) : 100}%`} detail={`${errors} corrections`} accent={errors ? 'destructive' : 'primary'} /><Metric icon={Clock3} label="Time" value={formatTime(elapsed)} detail="keep your rhythm" /></div>
-    <div className="glass-line panel-glow overflow-hidden rounded-2xl border"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-5 py-3 text-[11px] text-[hsl(var(--muted-foreground))]"><span className="font-mono">snippet.ts</span><span>{Math.min(100, Math.round((typed.length / activeSnippet.code.length) * 100))}% complete</span></div><div className="h-1 bg-[hsl(var(--muted))]"><div className="progress-fill h-full bg-[hsl(var(--primary))]" style={{ width: `${(typed.length / activeSnippet.code.length) * 100}%` }} /></div><div className="relative min-h-[340px] p-5 md:p-10"><input ref={inputRef} autoFocus value="" onKeyDown={handleKey} onBlur={() => inputRef.current?.focus()} aria-label="Type the code snippet" data-testid="input-code-capture" className="absolute left-0 top-0 size-px opacity-0" /><pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-[2] md:text-[15px]">{activeSnippet.code.split('').map((char, index) => { const typedChar = typed[index]; const isCurrent = index === typed.length; const wrong = typedChar && typedChar !== char; return <span key={`${index}-${char}`} className={classNames(typedChar && !wrong ? 'text-[hsl(var(--muted-foreground))]' : wrong ? 'rounded-sm bg-[hsl(var(--destructive)/.18)] text-[hsl(var(--destructive))]' : 'text-[hsl(var(--foreground)/.45)]', isCurrent && 'border-l-2 border-[hsl(var(--primary))] pl-0.5')}>{char === '\n' ? '↵\n' : char}</span>; })}</pre><div className="pointer-events-none absolute bottom-5 right-5 hidden items-center gap-2 font-mono text-[10px] text-[hsl(var(--muted-foreground))] md:flex"><CircleHelp size={13} /> Type exactly as shown</div></div></div>
+    <div className="glass-line panel-glow overflow-hidden rounded-2xl border"><div className="flex items-center justify-between border-b border-[hsl(var(--border))] px-5 py-3 text-[11px] text-[hsl(var(--muted-foreground))]"><span className="font-mono">snippet.ts</span><span>{Math.min(100, Math.round((typed.length / activeSnippet.code.length) * 100))}% complete</span></div><div className="h-1 bg-[hsl(var(--muted))]"><div className="progress-fill h-full bg-[hsl(var(--primary))]" style={{ width: `${(typed.length / activeSnippet.code.length) * 100}%` }} /></div><div className="relative min-h-[340px] p-5 md:p-10"><input ref={inputRef} autoFocus value="" onKeyDown={handleKey} onBlur={() => inputRef.current?.focus()} aria-label="Type the code snippet" data-testid="input-code-capture" className="absolute left-0 top-0 size-px opacity-0" /><pre className="whitespace-pre-wrap break-words font-mono text-[13px] leading-[2] md:text-[15px]">{activeSnippet.code.split('').map((char, index) => { const typedChar = typed[index]; const isCurrent = index === typed.length; const wrong = typedChar && typedChar !== char; return <span key={`${index}-${char}`} className={classNames(typedChar && !wrong ? 'code-correct' : wrong ? 'code-wrong rounded-sm' : 'code-pending', isCurrent && 'border-l-2 border-[hsl(var(--primary))] pl-0.5')}>{char === '\n' ? '↵\n' : char}</span>; })}</pre><div className="pointer-events-none absolute bottom-5 right-5 hidden items-center gap-2 font-mono text-[10px] text-[hsl(var(--muted-foreground))] md:flex"><CircleHelp size={13} /> Type exactly as shown</div></div></div>
     <div className="mt-4 flex items-center justify-between text-xs text-[hsl(var(--muted-foreground))]"><span>Tip: accuracy compounds. Slow is smooth.</span><span className="font-mono">{typed.length} / {activeSnippet.code.length} chars</span></div>
   </div>;
 
@@ -244,7 +317,14 @@ function RouterApp() {
   const allSnippets = useMemo(() => [...seededSnippets, ...customSnippets], [customSnippets]);
   const totalPoints = runs.reduce((sum, run) => sum + run.points, 0);
   const credits = runs.reduce((sum, run) => sum + Math.max(3, Math.round(run.points / 18)), 0);
-  useEffect(() => { window.localStorage.setItem('codesprint_theme', JSON.stringify(theme)); document.documentElement.classList.add('dark'); }, [theme]);
+  useEffect(() => {
+    window.localStorage.setItem('codesprint_theme', JSON.stringify(theme));
+    const root = document.documentElement;
+    root.classList.add('dark');
+    for (const [property, value] of Object.entries(themeTokens[theme])) {
+      root.style.setProperty(property, value);
+    }
+  }, [theme]);
   useEffect(() => { window.localStorage.setItem('codesprint_custom_snippets', JSON.stringify(customSnippets)); }, [customSnippets]);
   useEffect(() => { window.localStorage.setItem('codesprint_runs', JSON.stringify(runs)); }, [runs]);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 3000); return () => window.clearTimeout(timer); }, [notice]);
