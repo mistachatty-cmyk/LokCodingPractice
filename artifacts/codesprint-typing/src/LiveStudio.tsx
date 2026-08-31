@@ -90,6 +90,7 @@ export type LiveStudioProps = {
   onComplete?: (result: LiveStudioResult) => void;
   onShare?: (result: LiveStudioResult | null) => void;
   onCopyShare?: () => void;
+  onExternalShare?: (action: 'x' | 'linkedin') => void;
   onStart?: () => void;
   shareUrl?: string;
   shareText?: string;
@@ -300,6 +301,7 @@ export default function LiveStudio({
   onComplete,
   onShare,
   onCopyShare,
+  onExternalShare,
   onLibrarySelect,
   onStart,
   shareUrl,
@@ -640,8 +642,8 @@ export default function LiveStudio({
                 <button type="button" onClick={() => onCopyShare?.()} className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-live-copy-share">
                   <Code2 size={13} /> Copy link
                 </button>
-                {shareUrl && <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText ?? '')}&url=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noreferrer" className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="link-live-share-x">Post to X</a>}
-                {shareUrl && <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noreferrer" className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="link-live-share-linkedin">LinkedIn</a>}
+                {shareUrl && <a href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText ?? '')}&url=${encodeURIComponent(shareUrl)}`} onClick={() => onExternalShare?.('x')} target="_blank" rel="noreferrer" className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="link-live-share-x">Post to X</a>}
+                {shareUrl && <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`} onClick={() => onExternalShare?.('linkedin')} target="_blank" rel="noreferrer" className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="link-live-share-linkedin">LinkedIn</a>}
                 <button type="button" onClick={() => onShare?.(derivedResult)} className="flex items-center gap-2 rounded-lg bg-[hsl(var(--accent))] px-4 py-2.5 text-xs font-bold text-[hsl(var(--accent-foreground))] transition-transform hover:-translate-y-0.5" data-testid="button-live-share">
                   <Share2 size={14} /> Share result
                 </button>

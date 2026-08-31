@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
+import { accuracyBucket, trackEvent } from './lib/analytics';
 import { getLiveStudioPeriodKey, projectLiveStudioPreview, resolveLiveStudioChallenge, selectLiveStudioChallenge } from './liveStudioData';
 
 const localSnippet = {
@@ -18,6 +19,7 @@ function resetBrowser() {
   window.localStorage.clear();
   window.history.pushState({}, '', '/');
   document.documentElement.removeAttribute('style');
+  Reflect.deleteProperty(window, 'umami');
   vi.stubGlobal('crypto', { randomUUID: () => 'regression-run-id' });
 }
 
@@ -200,6 +202,8 @@ describe('live code visualizer studio', () => {
   });
 
   it('creates and persists a live build, then exposes share fallbacks', async () => {
+    const track = vi.fn();
+    Object.defineProperty(window, 'umami', { configurable: true, value: { track } });
     render(<App />);
     navigate('link-nav-live-studio');
 
@@ -217,6 +221,19 @@ describe('live code visualizer studio', () => {
       expect(screen.getByTestId('button-live-share')).toBeTruthy();
       expect(JSON.parse(window.localStorage.getItem('codesprint_live_builds') ?? '[]')).toHaveLength(1);
     });
+    expect(track).toHaveBeenCalledWith('live_studio_session_started', {
+      cadence: 'Daily',
+      tier: 'Small',
+      language: expect.any(String),
+      visualizer: expect.any(String),
+    });
+    expect(track).toHaveBeenCalledWith('live_studio_result_created', {
+      cadence: 'Daily',
+      tier: 'Small',
+      language: expect.any(String),
+      visualizer: expect.any(String),
+      accuracy_bucket: '95_100',
+    });
     expect(screen.getByTestId('link-live-share-x').getAttribute('href')).toContain('twitter.com/intent/tweet');
     expect(screen.getByTestId('link-live-share-linkedin').getAttribute('href')).toContain('linkedin.com/sharing');
 
@@ -225,5 +242,31 @@ describe('live code visualizer studio', () => {
     fireEvent.click(screen.getByTestId('button-live-copy-share'));
     await waitFor(() => expect(screen.getByTestId('status-live-share').textContent).toContain('copied'));
     expect(writeText).toHaveBeenCalledTimes(1);
+    expect(track).toHaveBeenCalledWith('live_studio_share_action', {
+      action: 'copy_link',
+      outcome: 'success',
+      cadence: 'Daily',
+      tier: 'Small',
+      language: expect.any(String),
+      visualizer: expect.any(String),
+      accuracy_bucket: '95_100',
+    });
+  });
+});
+
+describe('analytics safety', () => {
+  beforeEach(resetBrowser);
+
+  it('buckets accuracy and never lets an unavailable tracker break the app', () => {
+    expect(accuracyBucket(79.9)).toBe('0_79');
+    expect(accuracyBucket(80)).toBe('80_94');
+    expect(accuracyBucket(95)).toBe('95_100');
+
+    expect(() => trackEvent('test_event', { safe: true })).not.toThrow();
+
+    const track = vi.fn(() => { throw new Error('tracker unavailable'); });
+    Object.defineProperty(window, 'umami', { configurable: true, value: { track } });
+    expect(() => trackEvent('test_event', { safe: true })).not.toThrow();
+    expect(track).toHaveBeenCalledTimes(1);
   });
 });

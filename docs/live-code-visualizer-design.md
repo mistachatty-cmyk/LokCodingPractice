@@ -82,6 +82,20 @@ Sharing order:
 
 No social platform API or credential is required. Because the payload is local and URL-based, a future hosted gallery can replace the deep link with a server-owned result URL without changing the challenge or visualizer contracts.
 
+## Product analytics
+
+Live Studio records aggregate outcomes through the Replit-hosted analytics tracker when it is enabled. The shared analytics wrapper is guarded so a missing tracker, tracker load delay, or tracker error never interrupts practice. No typed code, challenge title, challenge ID, share URL, preview data, or other free-form content is sent.
+
+| Description | Event name |
+| --- | --- |
+| A learner starts a Live Studio session. | `live_studio_session_started` |
+| A learner creates a completed Live Studio result. | `live_studio_result_created` |
+| A learner completes, cancels, cannot complete, or initiates a Live Studio share action. | `live_studio_share_action` |
+
+The session-started event includes `cadence`, `tier`, `language`, and `visualizer`. Result-created adds `accuracy_bucket`. Share-action includes those same dimensions plus `accuracy_bucket`, `action` (`native`, `clipboard`, `copy_link`, `x`, or `linkedin`), and `outcome` (`success`, `cancelled`, `unavailable`, or `initiated`). Accuracy buckets are `0_79`, `80_94`, and `95_100`.
+
+To collect these events, go to **Publishing settings**, enable analytics, and publish or republish the app. The analytics changes take effect on the next publish.
+
 ## Future improvements
 
 - Add an AI generation adapter behind the existing server draft boundary, then keep the same contract validation before publishing.

@@ -20,6 +20,7 @@ import {
   selectLiveStudioChallenge,
   type LiveStudioBuild,
 } from './liveStudioData';
+import { accuracyBucket, trackEvent } from './lib/analytics';
 
 type Tier = 'Small' | 'Medium' | 'Hard' | 'Advanced' | 'Legendary';
 type Snippet = { id: string; title: string; language: string; tier: Tier; description: string; code: string; custom?: boolean };
@@ -336,7 +337,7 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   const [generationState, setGenerationState] = useState<'loading' | 'generated' | 'curated-fallback' | 'curated'>('curated');
   const [generationMessage, setGenerationMessage] = useState(initialChallenge ? 'Shared result preserved.' : 'Curated library target ready. No AI required.');
   const activeRotatedChallenge = rotatedChallenge.tier === tier ? rotatedChallenge : generatedChallenge;
-  const activeChallenge = liveStudioChallengeCatalog.find(challenge => challenge.id === challengeId && challenge.tier === tier) ?? activeRotatedChallenge;
+  const activeChallenge = curatedLiveStudioChallengeCatalog.find(challenge => challenge.id === challengeId && challenge.tier === tier) ?? activeRotatedChallenge;
   const [typed, setTyped] = useState(initialBuild && initialChallenge ? initialChallenge.code : '');
   const [errors, setErrors] = useState(0);
   const [started, setStarted] = useState(false);
@@ -402,6 +403,12 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     setStarted(true);
     startedRef.current = true;
     startedAt.current = Date.now();
+    trackEvent('live_studio_session_started', {
+      cadence,
+      tier,
+      language: activeChallenge.language,
+      visualizer: activeChallenge.visualizer ?? 'terminal',
+    });
   };
 
   const handleTyped = (value: string) => {
@@ -447,6 +454,13 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     setFinished(build);
     setElapsed(build.seconds);
     startedAt.current = null;
+    trackEvent('live_studio_result_created', {
+      cadence: build.cadence,
+      tier: build.tier,
+      language: activeChallenge.language,
+      visualizer: activeChallenge.visualizer ?? 'terminal',
+      accuracy_bucket: accuracyBucket(build.accuracy),
+    });
     onFinish(build);
   };
 
@@ -490,12 +504,25 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   const preview = finished?.preview ?? projectLiveStudioPreview(activeChallenge, typed);
   const shareUrl = finished ? liveStudioShareUrl(finished, window.location.href) : '';
   const shareText = finished ? `I built "${finished.title}" in Lokcodingpractice — ${finished.wpm} WPM at ${finished.accuracy}% accuracy.` : '';
+  const trackShareAction = (action: 'native' | 'clipboard' | 'copy_link' | 'x' | 'linkedin', outcome: 'success' | 'cancelled' | 'unavailable' | 'initiated') => {
+    if (!finished) return;
+    trackEvent('live_studio_share_action', {
+      action,
+      outcome,
+      cadence: finished.cadence,
+      tier: finished.tier,
+      language: activeChallenge.language,
+      visualizer: activeChallenge.visualizer ?? 'terminal',
+      accuracy_bucket: accuracyBucket(finished.accuracy),
+    });
+  };
 
   const copyShare = async () => {
     if (!shareUrl) return;
     try {
       await navigator.clipboard.writeText(shareUrl);
       setShareStatus('Share link copied.');
+      trackShareAction('copy_link', 'success');
     } catch {
       const input = document.createElement('textarea');
       input.value = shareUrl;
@@ -507,22 +534,30 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
       const copied = document.execCommand('copy');
       input.remove();
       setShareStatus(copied ? 'Share link copied.' : 'Copy was blocked. Use the social links below.');
+      trackShareAction('copy_link', copied ? 'success' : 'unavailable');
     }
   };
 
   const shareResult = async () => {
     if (!finished) return;
+    const hasNativeShare = typeof navigator.share === 'function';
     try {
-      if (navigator.share) {
+      if (hasNativeShare) {
         await navigator.share({ title: finished.title, text: shareText, url: shareUrl });
         setShareStatus('Share sheet opened.');
+        trackShareAction('native', 'success');
       } else {
         await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
         setShareStatus('Share text and link copied.');
+        trackShareAction('clipboard', 'success');
       }
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') return;
+      if (error instanceof Error && error.name === 'AbortError') {
+        trackShareAction('native', 'cancelled');
+        return;
+      }
       setShareStatus('Share sheet unavailable. Use Copy link or a social link.');
+      trackShareAction(hasNativeShare ? 'native' : 'clipboard', 'unavailable');
     }
   };
 
@@ -552,6 +587,7 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     onComplete={completeSession}
     onShare={shareResult}
     onCopyShare={copyShare}
+    onExternalShare={action => trackShareAction(action, 'initiated')}
     onStart={startSession}
     shareUrl={shareUrl}
     shareText={shareText}
