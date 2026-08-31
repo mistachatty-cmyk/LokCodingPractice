@@ -16,6 +16,7 @@ import {
   liveStudioChallengeCatalog,
   liveStudioShareUrl,
   projectLiveStudioPreview,
+  resolveLiveStudioChallenge,
   selectLiveStudioChallenge,
   type LiveStudioBuild,
 } from './liveStudioData';
@@ -331,7 +332,11 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   const [tier, setTier] = useState<LiveStudioTier>(initialTier);
   const [challengeId, setChallengeId] = useState(initialChallenge?.id ?? '');
   const generatedChallenge = useMemo(() => selectLiveStudioChallenge(cadence, tier), [cadence, tier]);
-  const activeChallenge = liveStudioChallengeCatalog.find(challenge => challenge.id === challengeId && challenge.tier === tier) ?? generatedChallenge;
+  const [rotatedChallenge, setRotatedChallenge] = useState(generatedChallenge);
+  const [generationState, setGenerationState] = useState<'loading' | 'generated' | 'curated-fallback' | 'curated'>(initialChallenge ? 'curated' : 'loading');
+  const [generationMessage, setGenerationMessage] = useState(initialChallenge ? 'Shared result preserved.' : '');
+  const activeRotatedChallenge = rotatedChallenge.tier === tier ? rotatedChallenge : generatedChallenge;
+  const activeChallenge = liveStudioChallengeCatalog.find(challenge => challenge.id === challengeId && challenge.tier === tier) ?? activeRotatedChallenge;
   const [typed, setTyped] = useState(initialBuild && initialChallenge ? initialChallenge.code : '');
   const [errors, setErrors] = useState(0);
   const [started, setStarted] = useState(false);
@@ -351,7 +356,27 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     preview: initialBuild.preview ?? projectLiveStudioPreview(initialChallenge, initialChallenge.code),
   } : null);
   const startedAt = useRef<number | null>(null);
+  const startedRef = useRef(false);
+  const preserveSharedChallengeRef = useRef(Boolean(initialChallenge));
   const [shareStatus, setShareStatus] = useState('');
+
+  useEffect(() => {
+    if (preserveSharedChallengeRef.current) return;
+    let cancelled = false;
+    const fallback = selectLiveStudioChallenge(cadence, tier);
+    setRotatedChallenge(fallback);
+    setChallengeId('');
+    setGenerationState('loading');
+    setGenerationMessage('Validating a fresh target before the session starts.');
+    void resolveLiveStudioChallenge(cadence, tier).then(selection => {
+      if (cancelled || startedRef.current) return;
+      setRotatedChallenge(selection.challenge);
+      setGenerationState(selection.source === 'generated' ? 'generated' : 'curated-fallback');
+      setGenerationMessage(selection.source === 'generated' ? 'Safe contract accepted.' : selection.message ?? 'Using a curated target.');
+      if (selection.source === 'curated-fallback') onAddNotice(selection.message ?? 'Generated target unavailable. Using the curated catalog.');
+    });
+    return () => { cancelled = true; };
+  }, [cadence, tier, onAddNotice]);
 
   useEffect(() => {
     if (!started) return;
@@ -369,11 +394,13 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     setFinished(null);
     setShareStatus('');
     startedAt.current = null;
+    startedRef.current = false;
   };
 
   const startSession = () => {
     resetSession();
     setStarted(true);
+    startedRef.current = true;
     startedAt.current = Date.now();
   };
 
@@ -416,6 +443,7 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
       preview: projectLiveStudioPreview(activeChallenge, activeChallenge.code),
     };
     setStarted(false);
+    startedRef.current = false;
     setFinished(build);
     setElapsed(build.seconds);
     startedAt.current = null;
@@ -423,17 +451,26 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   };
 
   const chooseCadence = (nextCadence: LiveStudioCadence) => {
+    preserveSharedChallengeRef.current = false;
     setCadence(nextCadence);
     setChallengeId('');
     resetSession();
   };
   const chooseTier = (nextTier: LiveStudioTier) => {
+    preserveSharedChallengeRef.current = false;
     setTier(nextTier);
     setChallengeId('');
     resetSession();
   };
   const chooseChallenge = (nextChallengeId: string) => {
+    preserveSharedChallengeRef.current = false;
     setChallengeId(nextChallengeId);
+    const selected = liveStudioChallengeCatalog.find(challenge => challenge.id === nextChallengeId && challenge.tier === tier);
+    if (selected) {
+      setRotatedChallenge(selected);
+      setGenerationState('curated');
+      setGenerationMessage('Curated catalog target selected.');
+    }
     resetSession();
   };
 
@@ -481,7 +518,7 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   const unlockedTiers = (Object.keys(tierMeta) as LiveStudioTier[]).filter(candidate => totalPoints >= tierMeta[candidate].unlock);
   if (finished && !unlockedTiers.includes(finished.tier)) unlockedTiers.push(finished.tier);
   return <LiveStudio
-    challenges={liveStudioChallengeCatalog.filter(challenge => challenge.tier === tier)}
+    challenges={[rotatedChallenge, ...liveStudioChallengeCatalog.filter(challenge => challenge.tier === tier && challenge.id !== rotatedChallenge.id)]}
     cadence={cadence}
     tier={tier}
     challengeId={activeChallenge.id}
@@ -506,6 +543,8 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     shareUrl={shareUrl}
     shareText={shareText}
     shareStatus={shareStatus}
+    generationState={generationState}
+    generationMessage={generationMessage}
   />;
 }
 

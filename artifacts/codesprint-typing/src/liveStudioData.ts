@@ -4,6 +4,7 @@ import type {
   LiveStudioSafePreview,
   LiveStudioTier,
 } from './LiveStudio';
+import { z } from 'zod';
 
 export const liveStudioChallengeCatalog: LiveStudioChallenge[] = [
   {
@@ -183,6 +184,65 @@ export const liveStudioChallengeCatalog: LiveStudioChallenge[] = [
   },
 ];
 
+export const liveStudioLanguages = ['TypeScript', 'JavaScript', 'SQL', 'Shell', 'Python', 'React'] as const;
+
+export const liveStudioTierTargetLengths: Record<LiveStudioTier, { min: number; max: number }> = {
+  Small: { min: 20, max: 180 },
+  Medium: { min: 25, max: 240 },
+  Hard: { min: 35, max: 320 },
+  Advanced: { min: 45, max: 420 },
+  Legendary: { min: 55, max: 600 },
+};
+
+const liveStudioVisualizerDataSchema = z.object({
+  labels: z.array(z.string().trim().min(1).max(48)).max(8).optional(),
+  colors: z.array(z.string().regex(/^#[0-9a-f]{6}$/i)).max(8).optional(),
+}).strict();
+
+const liveStudioChallengeSchema = z.object({
+  id: z.string().regex(/^[a-z0-9][a-z0-9-]{2,79}$/),
+  title: z.string().trim().min(3).max(80),
+  language: z.enum(liveStudioLanguages),
+  tier: z.enum(['Small', 'Medium', 'Hard', 'Advanced', 'Legendary']),
+  code: z.string().min(1).max(600),
+  description: z.string().trim().min(3).max(180).optional(),
+  objective: z.string().trim().min(3).max(180).optional(),
+  visualizer: z.enum(['counter', 'palette', 'tasks', 'terminal', 'rankings']),
+  visualizerData: liveStudioVisualizerDataSchema.optional(),
+  estimatedSeconds: z.number().int().min(10).max(900).optional(),
+}).strict();
+
+function assertVisualizerMetadata(challenge: LiveStudioChallenge) {
+  const data = challenge.visualizerData;
+  if (challenge.visualizer === 'palette' && (!data?.colors || data.colors.length < 2 || data.colors.length > 5)) {
+    throw new Error('challenge contract validation failed: palette visualizers require 2 to 5 color metadata values');
+  }
+  if ((challenge.visualizer === 'tasks' || challenge.visualizer === 'rankings') && (!data?.labels || data.labels.length < 2 || data.labels.length > 6)) {
+    throw new Error(`challenge contract validation failed: ${challenge.visualizer} visualizers require 2 to 6 label metadata values`);
+  }
+}
+
+export function validateLiveStudioChallenge(input: unknown, expectedTier?: LiveStudioTier): LiveStudioChallenge {
+  const parsed = liveStudioChallengeSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(`challenge contract validation failed: ${parsed.error.issues[0]?.message ?? 'invalid shape'}`);
+  }
+
+  const challenge = parsed.data as LiveStudioChallenge;
+  if (expectedTier && challenge.tier !== expectedTier) {
+    throw new Error(`challenge tier must be ${expectedTier}`);
+  }
+  const bounds = liveStudioTierTargetLengths[challenge.tier];
+  if (challenge.code.length < bounds.min || challenge.code.length > bounds.max) {
+    throw new Error(`challenge contract validation failed: target must be ${bounds.min}-${bounds.max} characters for ${challenge.tier}`);
+  }
+  if (challenge.code.trim().length === 0 || challenge.code.includes('\0') || /[\u0001-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(challenge.code)) {
+    throw new Error('challenge contract validation failed: target contains unsupported control characters');
+  }
+  assertVisualizerMetadata(challenge);
+  return challenge;
+}
+
 function pad(value: number) {
   return value.toString().padStart(2, '0');
 }
@@ -210,6 +270,41 @@ export function selectLiveStudioChallenge(cadence: LiveStudioCadence, tier: Live
   if (!choices.length) return liveStudioChallengeCatalog[0];
   const period = getLiveStudioPeriodKey(cadence, date);
   return choices[hash(`${cadence}:${tier}:${period}`) % choices.length];
+}
+
+export type LiveStudioChallengeSelection = {
+  challenge: LiveStudioChallenge;
+  source: 'generated' | 'curated-fallback';
+  message?: string;
+};
+
+function generationFailureMessage(error: unknown) {
+  if (error instanceof Error && error.message.includes('contract validation')) {
+    return 'Generated target failed contract validation. Using the curated catalog.';
+  }
+  return 'Generated target is unavailable. Using the curated catalog.';
+}
+
+export async function resolveLiveStudioChallenge(
+  cadence: LiveStudioCadence,
+  tier: LiveStudioTier,
+  date = new Date(),
+  fetcher: typeof globalThis.fetch = globalThis.fetch,
+): Promise<LiveStudioChallengeSelection> {
+  const fallback = selectLiveStudioChallenge(cadence, tier, date);
+  try {
+    const response = await fetcher('/api/live-studio/challenge', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ cadence, tier, periodKey: getLiveStudioPeriodKey(cadence, date) }),
+    });
+    if (!response.ok) throw new Error(`generator responded with ${response.status}`);
+    const payload = await response.json() as { challenge?: unknown } | unknown;
+    const candidate = payload && typeof payload === 'object' && 'challenge' in payload ? payload.challenge : payload;
+    return { challenge: validateLiveStudioChallenge(candidate, tier), source: 'generated' };
+  } catch (error) {
+    return { challenge: fallback, source: 'curated-fallback', message: generationFailureMessage(error) };
+  }
 }
 
 function progressFor(challenge: LiveStudioChallenge, typed: string) {

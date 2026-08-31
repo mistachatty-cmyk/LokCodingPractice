@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
-import { getLiveStudioPeriodKey, projectLiveStudioPreview, selectLiveStudioChallenge } from './liveStudioData';
+import { getLiveStudioPeriodKey, projectLiveStudioPreview, resolveLiveStudioChallenge, selectLiveStudioChallenge } from './liveStudioData';
 
 const localSnippet = {
   id: 'custom-regression-drill',
@@ -146,6 +146,57 @@ describe('live code visualizer studio', () => {
     expect(partial.status).not.toBe(complete.status);
     expect(partial.kind).toBe(challenge.visualizer);
     expect(complete.status).toMatch(/ready|complete|reached|inspect|settle|share/i);
+  });
+
+  it('selects a contract-valid generated challenge for the requested tier', async () => {
+    const generated = {
+      id: 'generated-small-counter-20260831',
+      title: 'Shape the score pulse',
+      language: 'TypeScript',
+      tier: 'Small',
+      description: 'Turn one bounded score update into a readable signal.',
+      objective: 'Return a score that never exceeds the safe ceiling.',
+      visualizer: 'counter',
+      code: "const nextScore = Math.min(100, score + 10);\nreturn nextScore;",
+      estimatedSeconds: 25,
+    };
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ challenge: generated, source: 'generated' }),
+    }) as unknown as typeof globalThis.fetch;
+
+    const selection = await resolveLiveStudioChallenge('Daily', 'Small', new Date(2026, 7, 31), fetcher);
+
+    expect(selection.source).toBe('generated');
+    expect(selection.challenge).toEqual(generated);
+    expect(fetcher).toHaveBeenCalledWith('/api/live-studio/challenge', expect.objectContaining({
+      method: 'POST',
+      body: expect.stringContaining('"tier":"Small"'),
+    }));
+  });
+
+  it('falls back to the curated challenge when generated metadata is invalid', async () => {
+    const fetcher = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        challenge: {
+          id: 'generated-small-palette-20260831',
+          title: 'Broken palette',
+          language: 'TypeScript',
+          tier: 'Small',
+          code: "const colors = ['#79e3d2'];\nreturn colors;",
+          visualizer: 'palette',
+          visualizerData: { colors: ['#79e3d2'] },
+        },
+      }),
+    }) as unknown as typeof globalThis.fetch;
+    const date = new Date(2026, 7, 31);
+
+    const selection = await resolveLiveStudioChallenge('Daily', 'Small', date, fetcher);
+
+    expect(selection.source).toBe('curated-fallback');
+    expect(selection.challenge.id).toBe(selectLiveStudioChallenge('Daily', 'Small', date).id);
+    expect(selection.message).toContain('contract validation');
   });
 
   it('creates and persists a live build, then exposes share fallbacks', async () => {

@@ -50,6 +50,8 @@ export type LiveStudioSafePreview = {
   accent?: 'mint' | 'amber' | 'rose';
 };
 
+export type LiveStudioGenerationState = 'loading' | 'generated' | 'curated-fallback' | 'curated';
+
 export type LiveStudioResult = {
   id?: string;
   challengeId?: string;
@@ -89,6 +91,8 @@ export type LiveStudioProps = {
   shareUrl?: string;
   shareText?: string;
   shareStatus?: string;
+  generationState?: LiveStudioGenerationState;
+  generationMessage?: string;
   className?: string;
 };
 
@@ -297,6 +301,8 @@ export default function LiveStudio({
   shareUrl,
   shareText,
   shareStatus,
+  generationState = 'generated',
+  generationMessage,
   className,
 }: LiveStudioProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -418,6 +424,12 @@ export default function LiveStudio({
               <h2 className="text-xl font-bold tracking-tight">{activeChallenge?.title ?? 'No target loaded'}</h2>
               <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{activeChallenge?.description ?? 'Choose a target to begin your studio session.'}</p>
               {activeChallenge?.objective && <p className="mt-2 text-xs font-medium text-[hsl(var(--primary))]">Build objective: {activeChallenge.objective}</p>}
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]" role="status" data-testid="status-live-generation">
+                <span className={cn('rounded-md border px-2 py-1 font-mono uppercase tracking-[.08em]', generationState === 'loading' ? 'border-[hsl(var(--accent)/.35)] text-[hsl(var(--accent))]' : generationState === 'curated-fallback' ? 'border-[hsl(var(--destructive)/.35)] text-[hsl(var(--destructive))]' : 'border-[hsl(var(--primary)/.35)] text-[hsl(var(--primary))]')}>
+                  {generationState === 'loading' ? 'checking rotation' : generationState === 'curated-fallback' ? 'curated fallback' : generationState === 'curated' ? 'curated catalog' : 'generated draft'}
+                </span>
+                {generationMessage && <span className="text-[hsl(var(--muted-foreground))]">{generationMessage}</span>}
+              </div>
             </div>
           </div>
         </div>

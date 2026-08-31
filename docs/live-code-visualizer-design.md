@@ -52,6 +52,18 @@ The presentation layer renders only the object fields:
 
 This approach makes partial typing feel live without turning learner input into executable code. New visualizers should be added as a new discriminated kind plus a pure projection branch and a presentational renderer.
 
+## Rotating generated challenges
+
+Live Studio requests a server-owned draft for the selected cadence, tier, and local period. The server rotates among safe recipes, validates the draft against the challenge contract, and returns it only after checking:
+
+- supported language and visualizer kind;
+- tier-specific target length;
+- bounded title, description, objective, and estimate fields;
+- visualizer metadata (2–5 colors for palettes and 2–6 labels for task/ranking projections);
+- absence of unsupported control characters in the typing target.
+
+The browser validates the response again before replacing the deterministic catalog selection. A rejected, malformed, timed-out, or unavailable response returns the same curated selection that would have been shown without a server. The UI labels the source and announces the fallback. A request that finishes after a learner starts typing cannot replace the active target, so learner input is never executed or discarded by rotation.
+
 ## Persistence
 
 Live completions are stored in `codesprint_live_builds`, separate from the existing `codesprint_runs`, `codesprint_custom_snippets`, and `codesprint_theme` records. Each build stores its challenge identity, cadence, tier, metrics, points, completion timestamp, and final safe preview.
@@ -72,8 +84,7 @@ No social platform API or credential is required. Because the payload is local a
 
 ## Future improvements
 
-- Replace or augment the deterministic catalog with a server-side generator that returns validated challenge contracts.
-- Add an AI generation adapter that produces challenge drafts, then validates tier, code length, language, and visualizer metadata before publishing.
+- Add an AI generation adapter behind the existing server draft boundary, then keep the same contract validation before publishing.
 - Add more visualizer kinds such as JSON inspector, form builder, chart, and component preview.
 - Add challenge authoring tools for curated lessons and team-specific code patterns.
 - Add hosted result snapshots so shared links remain small and discoverable.

@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: live-studio
+    description: Safe rotating Live Studio challenge operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /live-studio/challenge:
+    post:
+      operationId: generateLiveStudioChallenge
+      tags: [live-studio]
+      summary: Generate a validated Live Studio challenge draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LiveStudioChallengeRequest"
+      responses:
+        "200":
+          description: Generated challenge contract
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveStudioChallengeResponse"
+        "400":
+          description: Invalid request
+        "503":
+          description: Generator unavailable or draft rejected
 components:
   schemas:
     HealthStatus:
@@ -33,4 +57,56 @@ components:
           type: string
       required:
         - status
+    LiveStudioChallengeRequest:
+      type: object
+      properties:
+        cadence:
+          type: string
+          enum: [Daily, Weekly, Monthly]
+        tier:
+          type: string
+          enum: [Small, Medium, Hard, Advanced, Legendary]
+        periodKey:
+          type: string
+          pattern: "^\\d{4}-\\d{2}(-\\d{2})?$"
+      required: [cadence, tier, periodKey]
+    LiveStudioChallenge:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        language:
+          type: string
+          enum: [TypeScript, JavaScript, SQL, Shell, Python, React]
+        tier:
+          type: string
+          enum: [Small, Medium, Hard, Advanced, Legendary]
+        code: { type: string }
+        description: { type: string }
+        objective: { type: string }
+        visualizer:
+          type: string
+          enum: [counter, palette, tasks, terminal, rankings]
+        visualizerData:
+          type: object
+          properties:
+            labels:
+              type: array
+              items: { type: string }
+            colors:
+              type: array
+              items: { type: string }
+        estimatedSeconds:
+          type: number
+          description: Whole seconds for the target estimate
+      required: [id, title, language, tier, code, visualizer]
+    LiveStudioChallengeResponse:
+      type: object
+      properties:
+        challenge:
+          $ref: "#/components/schemas/LiveStudioChallenge"
+        source:
+          type: string
+          enum: [generated]
+      required: [challenge, source]
 
