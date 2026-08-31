@@ -25,80 +25,86 @@ import { accuracyBucket, trackEvent } from './lib/analytics';
 type Tier = 'Small' | 'Medium' | 'Hard' | 'Advanced' | 'Legendary';
 type Snippet = { id: string; title: string; language: string; tier: Tier; description: string; code: string; custom?: boolean };
 type Run = { id: string; snippetTitle: string; tier: Tier; wpm: number; cpm: number; accuracy: number; seconds: number; points: number; date: string };
-type ThemeName = 'midnight' | 'ember' | 'mint';
+type ThemeName = 'midnight' | 'ember' | 'mint' | 'oceanic' | 'violet' | 'cobalt' | 'copper' | 'sage' | 'mono' | 'solar' | 'berry' | 'lagoon' | 'ultraviolet' | 'oxide' | 'arctic' | 'orchid' | 'aurora' | 'obsidian' | 'prism' | 'eclipse';
 type ThemeTokens = Record<string, string>;
-
-const themeTokens: Record<ThemeName, ThemeTokens> = {
-  midnight: {
-    '--background': '218 26% 8%',
-    '--foreground': '210 22% 90%',
-    '--border': '213 18% 18%',
-    '--input': '213 18% 18%',
-    '--ring': '168 66% 70%',
-    '--card': '216 23% 11%',
-    '--card-foreground': '210 22% 90%',
-    '--card-border': '213 18% 19%',
-    '--popover': '216 24% 13%',
-    '--popover-foreground': '210 22% 90%',
-    '--popover-border': '213 18% 21%',
-    '--primary': '168 66% 70%',
-    '--primary-foreground': '218 26% 8%',
-    '--secondary': '216 20% 15%',
-    '--secondary-foreground': '210 20% 78%',
-    '--muted': '216 18% 14%',
-    '--muted-foreground': '215 12% 56%',
-    '--accent': '36 82% 69%',
-    '--accent-foreground': '218 26% 8%',
-    '--destructive': '5 72% 67%',
-    '--destructive-foreground': '218 26% 8%',
-  },
-  ember: {
-    '--background': '12 25% 8%',
-    '--foreground': '30 34% 92%',
-    '--border': '15 20% 22%',
-    '--input': '15 20% 22%',
-    '--ring': '12 78% 72%',
-    '--card': '14 24% 12%',
-    '--card-foreground': '30 34% 92%',
-    '--card-border': '15 20% 24%',
-    '--popover': '14 25% 15%',
-    '--popover-foreground': '30 34% 92%',
-    '--popover-border': '15 20% 27%',
-    '--primary': '12 78% 72%',
-    '--primary-foreground': '12 25% 8%',
-    '--secondary': '15 20% 17%',
-    '--secondary-foreground': '26 24% 78%',
-    '--muted': '15 18% 16%',
-    '--muted-foreground': '24 13% 58%',
-    '--accent': '39 86% 70%',
-    '--accent-foreground': '12 25% 8%',
-    '--destructive': '2 76% 68%',
-    '--destructive-foreground': '12 25% 8%',
-  },
-  mint: {
-    '--background': '165 25% 8%',
-    '--foreground': '150 28% 91%',
-    '--border': '164 18% 20%',
-    '--input': '164 18% 20%',
-    '--ring': '148 56% 72%',
-    '--card': '164 22% 12%',
-    '--card-foreground': '150 28% 91%',
-    '--card-border': '164 18% 23%',
-    '--popover': '164 24% 15%',
-    '--popover-foreground': '150 28% 91%',
-    '--popover-border': '164 18% 26%',
-    '--primary': '148 56% 72%',
-    '--primary-foreground': '165 25% 8%',
-    '--secondary': '164 19% 17%',
-    '--secondary-foreground': '150 22% 78%',
-    '--muted': '164 17% 16%',
-    '--muted-foreground': '155 13% 57%',
-    '--accent': '75 48% 68%',
-    '--accent-foreground': '165 25% 8%',
-    '--destructive': '5 68% 68%',
-    '--destructive-foreground': '165 25% 8%',
-  },
+type PaletteDefinition = {
+  id: ThemeName;
+  name: string;
+  tier: Tier;
+  level: number;
+  description: string;
+  colors: string[];
+  tokens: ThemeTokens;
 };
+type PaletteSeed = Omit<PaletteDefinition, 'tokens'> & {
+  background: string;
+  foreground: string;
+  primary: string;
+  primaryForeground: string;
+  accent: string;
+  accentForeground: string;
+  border: string;
+  card: string;
+  muted: string;
+  mutedForeground: string;
+  glowA: string;
+  glowB: string;
+};
+
+const paletteSeeds: PaletteSeed[] = [
+  { id: 'midnight', name: 'Midnight terminal', tier: 'Small', level: 1, description: 'Cool focus with a warm signal.', colors: ['#10151b', '#7ee7d8', '#f5b96b'], background: '218 26% 8%', foreground: '210 22% 90%', primary: '168 66% 70%', primaryForeground: '218 26% 8%', accent: '36 82% 69%', accentForeground: '218 26% 8%', border: '213 18% 18%', card: '216 23% 11%', muted: '216 18% 14%', mutedForeground: '215 12% 56%', glowA: '168 66% 70%', glowB: '36 82% 69%' },
+  { id: 'ember', name: 'Ember shift', tier: 'Small', level: 2, description: 'A little heat for late-night reps.', colors: ['#1d1719', '#f3b0a8', '#f3c876'], background: '12 25% 8%', foreground: '30 34% 92%', primary: '12 78% 72%', primaryForeground: '12 25% 8%', accent: '39 86% 70%', accentForeground: '12 25% 8%', border: '15 20% 22%', card: '14 24% 12%', muted: '15 18% 16%', mutedForeground: '24 13% 58%', glowA: '12 78% 72%', glowB: '39 86% 70%' },
+  { id: 'mint', name: 'Quiet mint', tier: 'Small', level: 3, description: 'Low contrast, high stamina.', colors: ['#111c1c', '#9de4c3', '#c4d39a'], background: '165 25% 8%', foreground: '150 28% 91%', primary: '148 56% 72%', primaryForeground: '165 25% 8%', accent: '75 48% 68%', accentForeground: '165 25% 8%', border: '164 18% 20%', card: '164 22% 12%', muted: '164 17% 16%', mutedForeground: '155 13% 57%', glowA: '148 56% 72%', glowB: '75 48% 68%' },
+  { id: 'oceanic', name: 'Oceanic buffer', tier: 'Small', level: 4, description: 'Clear blue edges for steady debugging.', colors: ['#101b2b', '#82c9f5', '#8ee6ca'], background: '215 34% 9%', foreground: '207 42% 93%', primary: '199 82% 73%', primaryForeground: '215 34% 9%', accent: '157 62% 73%', accentForeground: '215 34% 9%', border: '214 25% 21%', card: '214 29% 13%', muted: '214 24% 16%', mutedForeground: '211 19% 61%', glowA: '199 82% 73%', glowB: '157 62% 73%' },
+  { id: 'violet', name: 'Violet compile', tier: 'Medium', level: 1, description: 'A patient purple for longer patterns.', colors: ['#171426', '#c7a7ef', '#f0b5d2'], background: '255 29% 9%', foreground: '267 38% 93%', primary: '266 72% 76%', primaryForeground: '255 29% 9%', accent: '327 68% 78%', accentForeground: '255 29% 9%', border: '258 22% 22%', card: '256 25% 13%', muted: '257 20% 17%', mutedForeground: '261 17% 61%', glowA: '266 72% 76%', glowB: '327 68% 78%' },
+  { id: 'cobalt', name: 'Cobalt focus', tier: 'Medium', level: 2, description: 'Sharp contrast for deliberate practice.', colors: ['#0e1728', '#8fb7ff', '#e8c879'], background: '219 35% 8%', foreground: '216 39% 93%', primary: '220 100% 78%', primaryForeground: '219 35% 8%', accent: '43 73% 72%', accentForeground: '219 35% 8%', border: '218 27% 20%', card: '219 30% 12%', muted: '218 23% 16%', mutedForeground: '217 19% 59%', glowA: '220 100% 78%', glowB: '43 73% 72%' },
+  { id: 'copper', name: 'Copper wire', tier: 'Medium', level: 3, description: 'Warm metal tones for making progress tangible.', colors: ['#241917', '#f0ad85', '#f3d18a'], background: '13 25% 9%', foreground: '27 39% 92%', primary: '22 78% 73%', primaryForeground: '13 25% 9%', accent: '43 81% 75%', accentForeground: '13 25% 9%', border: '16 22% 23%', card: '15 24% 13%', muted: '16 19% 17%', mutedForeground: '24 16% 60%', glowA: '22 78% 73%', glowB: '43 81% 75%' },
+  { id: 'sage', name: 'Sage stack', tier: 'Medium', level: 4, description: 'Soft green layers for readable complexity.', colors: ['#111c1a', '#a6d7b4', '#d6c68c'], background: '156 25% 8%', foreground: '143 28% 92%', primary: '139 47% 73%', primaryForeground: '156 25% 8%', accent: '48 47% 70%', accentForeground: '156 25% 8%', border: '154 18% 21%', card: '155 22% 12%', muted: '154 17% 16%', mutedForeground: '150 13% 58%', glowA: '139 47% 73%', glowB: '48 47% 70%' },
+  { id: 'mono', name: 'Mono signal', tier: 'Hard', level: 1, description: 'A restrained grayscale for hard syntax.', colors: ['#121416', '#e5e7eb', '#9ca3af'], background: '220 10% 7%', foreground: '220 16% 92%', primary: '214 18% 82%', primaryForeground: '220 10% 7%', accent: '199 35% 67%', accentForeground: '220 10% 7%', border: '220 10% 19%', card: '220 10% 11%', muted: '220 9% 15%', mutedForeground: '220 8% 57%', glowA: '214 18% 82%', glowB: '199 35% 67%' },
+  { id: 'solar', name: 'Solar flare', tier: 'Hard', level: 2, description: 'A bright amber pulse for production patterns.', colors: ['#241b12', '#f6ca76', '#f19b78'], background: '30 28% 8%', foreground: '38 42% 93%', primary: '42 85% 72%', primaryForeground: '30 28% 8%', accent: '15 78% 72%', accentForeground: '30 28% 8%', border: '28 23% 23%', card: '28 25% 13%', muted: '28 20% 17%', mutedForeground: '31 15% 59%', glowA: '42 85% 72%', glowB: '15 78% 72%' },
+  { id: 'berry', name: 'Berry branch', tier: 'Hard', level: 3, description: 'Deep berry accents for focused refactors.', colors: ['#25131e', '#ee9fbd', '#c8a2ef'], background: '329 29% 8%', foreground: '330 38% 93%', primary: '335 75% 76%', primaryForeground: '329 29% 8%', accent: '267 65% 78%', accentForeground: '329 29% 8%', border: '329 22% 23%', card: '329 24% 13%', muted: '329 19% 17%', mutedForeground: '329 14% 60%', glowA: '335 75% 76%', glowB: '267 65% 78%' },
+  { id: 'lagoon', name: 'Lagoon current', tier: 'Hard', level: 4, description: 'Teal depth for code that has to hold together.', colors: ['#0f2022', '#75e1d4', '#80bdf4'], background: '186 35% 8%', foreground: '183 35% 92%', primary: '174 65% 70%', primaryForeground: '186 35% 8%', accent: '211 82% 75%', accentForeground: '186 35% 8%', border: '185 24% 21%', card: '185 28% 12%', muted: '185 22% 16%', mutedForeground: '184 15% 58%', glowA: '174 65% 70%', glowB: '211 82% 75%' },
+  { id: 'ultraviolet', name: 'Ultraviolet lab', tier: 'Advanced', level: 1, description: 'High-energy purple for deep work mode.', colors: ['#17112a', '#d0a4ff', '#70dce8'], background: '267 36% 8%', foreground: '268 44% 94%', primary: '270 100% 82%', primaryForeground: '267 36% 8%', accent: '185 68% 70%', accentForeground: '267 36% 8%', border: '264 27% 23%', card: '264 29% 13%', muted: '264 23% 17%', mutedForeground: '266 18% 62%', glowA: '270 100% 82%', glowB: '185 68% 70%' },
+  { id: 'oxide', name: 'Oxide bloom', tier: 'Advanced', level: 2, description: 'Rust and rose for systems under pressure.', colors: ['#241415', '#f09d8f', '#e8c47b'], background: '4 29% 8%', foreground: '14 39% 93%', primary: '7 77% 74%', primaryForeground: '4 29% 8%', accent: '42 76% 71%', accentForeground: '4 29% 8%', border: '5 24% 22%', card: '5 26% 13%', muted: '5 20% 17%', mutedForeground: '10 15% 60%', glowA: '7 77% 74%', glowB: '42 76% 71%' },
+  { id: 'arctic', name: 'Arctic relay', tier: 'Advanced', level: 3, description: 'Cold clarity for a clean mental stack.', colors: ['#101d29', '#a4d9f5', '#b4c7f5'], background: '205 31% 8%', foreground: '205 38% 94%', primary: '197 76% 79%', primaryForeground: '205 31% 8%', accent: '226 72% 82%', accentForeground: '205 31% 8%', border: '205 23% 21%', card: '205 27% 12%', muted: '205 21% 16%', mutedForeground: '207 16% 60%', glowA: '197 76% 79%', glowB: '226 72% 82%' },
+  { id: 'orchid', name: 'Orchid runtime', tier: 'Advanced', level: 4, description: 'Magenta signal with enough calm to stay precise.', colors: ['#211326', '#f2a8dc', '#a7b5f4'], background: '295 31% 8%', foreground: '295 40% 93%', primary: '316 78% 79%', primaryForeground: '295 31% 8%', accent: '228 77% 80%', accentForeground: '295 31% 8%', border: '295 23% 22%', card: '295 27% 13%', muted: '295 20% 17%', mutedForeground: '295 15% 60%', glowA: '316 78% 79%', glowB: '228 77% 80%' },
+  { id: 'aurora', name: 'Aurora mesh', tier: 'Legendary', level: 1, description: 'Layered light for the long compile.', colors: ['#0c2022', '#7ff0d0', '#c8a5f4'], background: '183 44% 7%', foreground: '177 40% 94%', primary: '166 78% 75%', primaryForeground: '183 44% 7%', accent: '269 72% 79%', accentForeground: '183 44% 7%', border: '182 28% 20%', card: '182 35% 11%', muted: '182 26% 15%', mutedForeground: '181 17% 58%', glowA: '166 78% 75%', glowB: '269 72% 79%' },
+  { id: 'obsidian', name: 'Obsidian room', tier: 'Legendary', level: 2, description: 'Near-black contrast for earned mastery.', colors: ['#090b10', '#d8e4f3', '#f1b86d'], background: '222 31% 5%', foreground: '215 39% 94%', primary: '211 64% 84%', primaryForeground: '222 31% 5%', accent: '34 82% 70%', accentForeground: '222 31% 5%', border: '220 18% 16%', card: '220 22% 9%', muted: '220 16% 13%', mutedForeground: '218 13% 55%', glowA: '211 64% 84%', glowB: '34 82% 70%' },
+  { id: 'prism', name: 'Prism array', tier: 'Legendary', level: 3, description: 'A full-spectrum signal for the final stretch.', colors: ['#17152a', '#f3a8c8', '#8fe5d1', '#b7a6f4'], background: '246 32% 8%', foreground: '246 38% 94%', primary: '329 77% 80%', primaryForeground: '246 32% 8%', accent: '163 65% 74%', accentForeground: '246 32% 8%', border: '246 24% 22%', card: '246 27% 13%', muted: '246 21% 17%', mutedForeground: '245 15% 61%', glowA: '329 77% 80%', glowB: '163 65% 74%' },
+  { id: 'eclipse', name: 'Eclipse core', tier: 'Legendary', level: 4, description: 'Deep space tones for syntax at full speed.', colors: ['#111321', '#9db6ff', '#f0a4a4'], background: '231 34% 7%', foreground: '228 38% 94%', primary: '224 100% 80%', primaryForeground: '231 34% 7%', accent: '0 72% 76%', accentForeground: '231 34% 7%', border: '230 25% 19%', card: '230 29% 11%', muted: '230 22% 15%', mutedForeground: '228 16% 58%', glowA: '224 100% 80%', glowB: '0 72% 76%' },
+];
+
+function createThemeTokens(seed: PaletteSeed): ThemeTokens {
+  return {
+    '--background': seed.background,
+    '--foreground': seed.foreground,
+    '--border': seed.border,
+    '--input': seed.border,
+    '--ring': seed.primary,
+    '--card': seed.card,
+    '--card-foreground': seed.foreground,
+    '--card-border': seed.border,
+    '--popover': seed.card,
+    '--popover-foreground': seed.foreground,
+    '--popover-border': seed.border,
+    '--primary': seed.primary,
+    '--primary-foreground': seed.primaryForeground,
+    '--secondary': seed.muted,
+    '--secondary-foreground': seed.foreground,
+    '--muted': seed.muted,
+    '--muted-foreground': seed.mutedForeground,
+    '--accent': seed.accent,
+    '--accent-foreground': seed.accentForeground,
+    '--destructive': '5 72% 67%',
+    '--destructive-foreground': seed.background,
+    '--palette-glow-a': seed.glowA,
+    '--palette-glow-b': seed.glowB,
+    '--palette-gradient': `radial-gradient(circle at 12% 8%, hsl(${seed.glowA} / .16), transparent 40%), radial-gradient(circle at 88% 14%, hsl(${seed.glowB} / .14), transparent 38%)`,
+  };
+}
+
+const paletteCatalog: PaletteDefinition[] = paletteSeeds.map(seed => ({ ...seed, tokens: createThemeTokens(seed) }));
+const themeTokens = Object.fromEntries(paletteCatalog.map(palette => [palette.id, palette.tokens])) as Record<ThemeName, ThemeTokens>;
 
 const tierMeta: Record<Tier, { tag: string; subtitle: string; color: string; points: number; unlock: number }> = {
   Small: { tag: '01', subtitle: 'Warm-up patterns', color: '#7ee7d8', points: 50, unlock: 0 },
@@ -138,11 +144,11 @@ function formatTime(seconds: number) {
 }
 function classNames(...classes: Array<string | false | undefined>) { return classes.filter(Boolean).join(' '); }
 
-function AppShell({ children, theme, totalPoints, credits }: { children: ReactNode; theme: ThemeName; totalPoints: number; credits: number }) {
+function AppShell({ children, theme, totalPoints, credits, animated }: { children: ReactNode; theme: ThemeName; totalPoints: number; credits: number; animated: boolean }) {
   const [location] = useLocation();
   const [mobileMenu, setMobileMenu] = useState(false);
   return (
-    <div className="min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]">
+    <div className={classNames('min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]', animated && 'palette-animated')}>
       <div className="noise" />
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] border-r border-[hsl(var(--border))] bg-[hsl(var(--background)/.88)] px-5 py-6 backdrop-blur-xl md:flex md:flex-col">
         <Brand />
@@ -185,7 +191,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
 
 function NavItem({ item, active, compact, onNavigate }: { item: { href: string; label: string; icon: LucideIcon }; active: boolean; compact?: boolean; onNavigate?: () => void }) {
   const Icon = item.icon;
-  return <Link href={item.href} onClick={onNavigate} className={classNames('group flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-colors', active ? 'bg-[hsl(var(--primary)/.12)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]', compact && 'flex-col gap-1 px-2 py-1 text-[10px]')} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={compact ? 18 : 17} strokeWidth={active ? 2.4 : 1.8} /><span>{item.label}</span>{active && !compact && <span className="ml-auto size-1.5 rounded-full bg-[hsl(var(--primary))]" />}</Link>;
+  return <Link href={item.href} onClick={onNavigate} aria-current={active ? 'page' : undefined} className={classNames('group flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-colors', active ? 'bg-[hsl(var(--primary)/.12)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]', compact && 'flex-col gap-1 px-2 py-1 text-[10px]')} data-testid={`link-nav-${item.label.toLowerCase().replaceAll(' ', '-')}`}><Icon size={compact ? 18 : 17} strokeWidth={active ? 2.4 : 1.8} /><span>{item.label}</span>{active && !compact && <span className="ml-auto size-1.5 rounded-full bg-[hsl(var(--primary))]" />}</Link>;
 }
 
 function PageIntro({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: ReactNode }) {
