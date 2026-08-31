@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
 import { accuracyBucket, trackEvent } from './lib/analytics';
-import { getLiveStudioPeriodKey, projectLiveStudioPreview, resolveLiveStudioChallenge, selectLiveStudioChallenge } from './liveStudioData';
+import { curatedLiveStudioChallengeCatalog, getLiveStudioPeriodKey, projectLiveStudioPreview, resolveLiveStudioChallenge, selectLiveStudioChallenge } from './liveStudioData';
 
 const localSnippet = {
   id: 'custom-regression-drill',
@@ -136,6 +136,19 @@ describe('local library and workspace regressions', () => {
 describe('live code visualizer studio', () => {
   beforeEach(resetBrowser);
 
+  it('ships a broad valid curated catalog across tiers, languages, and visualizers', () => {
+    expect(curatedLiveStudioChallengeCatalog).toHaveLength(30);
+    expect(new Set(curatedLiveStudioChallengeCatalog.map(challenge => challenge.tier))).toEqual(new Set(['Small', 'Medium', 'Hard', 'Advanced', 'Legendary']));
+    expect(new Set(curatedLiveStudioChallengeCatalog.map(challenge => challenge.language))).toEqual(new Set(['TypeScript', 'JavaScript', 'SQL', 'Shell', 'Python', 'React']));
+    expect(new Set(curatedLiveStudioChallengeCatalog.map(challenge => challenge.visualizer))).toEqual(new Set(['counter', 'palette', 'tasks', 'terminal', 'rankings']));
+    for (const challenge of curatedLiveStudioChallengeCatalog) {
+      const partial = projectLiveStudioPreview(challenge, challenge.code.slice(0, Math.max(1, Math.floor(challenge.code.length / 2))));
+      const complete = projectLiveStudioPreview(challenge, challenge.code);
+      expect(partial.kind).toBe(challenge.visualizer);
+      expect(partial.status).not.toBe(complete.status);
+    }
+  });
+
   it('selects a stable scheduled challenge and projects partial code safely', () => {
     const date = new Date(2026, 7, 31, 12, 0, 0);
     expect(selectLiveStudioChallenge('Daily', 'Small', date).id).toBe(selectLiveStudioChallenge('Daily', 'Small', date).id);
@@ -199,6 +212,35 @@ describe('live code visualizer studio', () => {
     expect(selection.source).toBe('curated-fallback');
     expect(selection.challenge.id).toBe(selectLiveStudioChallenge('Daily', 'Small', date).id);
     expect(selection.message).toContain('contract validation');
+  });
+
+  it('renders the curated target immediately when the generator is unavailable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('generator offline')));
+    render(<App />);
+    navigate('link-nav-live-studio');
+
+    expect(screen.getByTestId('status-live-generation').textContent).toContain('curated catalog');
+    expect(screen.getByTestId('text-live-library-count').textContent).toContain('6 / 30');
+    await waitFor(() => expect(screen.getByTestId('status-live-generation').textContent).toContain('curated fallback'));
+    vi.unstubAllGlobals();
+  });
+
+  it('filters the curated library and resets an active session when a target changes', () => {
+    render(<App />);
+    navigate('link-nav-live-studio');
+    fireEvent.change(screen.getByTestId('input-live-library-search'), { target: { value: 'Python' } });
+
+    expect(screen.getByTestId('text-live-library-count').textContent).toContain('1 / 30');
+    expect(screen.getByTestId('button-live-library-small-python-directory')).toBeTruthy();
+    expect(screen.queryByTestId('button-live-library-small-react-badge')).toBeNull();
+
+    fireEvent.click(screen.getByTestId('button-live-start'));
+    fireEvent.change(screen.getByTestId('input-live-code'), { target: { value: 'from' } });
+    expect((screen.getByTestId('input-live-code') as HTMLTextAreaElement).value).toBe('from');
+    fireEvent.click(screen.getByTestId('button-live-library-small-python-directory'));
+
+    expect((screen.getByTestId('input-live-code') as HTMLTextAreaElement).value).toBe('');
+    expect(screen.getByRole('heading', { name: 'List the workspace' })).toBeTruthy();
   });
 
   it('creates and persists a live build, then exposes share fallbacks', async () => {
