@@ -1,1 +1,2 @@
 - [React route state preservation](react-route-state.md) — keep routed component identity stable when parent state updates can occur during an active flow.
+- [Local browser checks](local-browser-checks.md) — Playwright needs a system Chromium fallback and local-only checks should block external requests.

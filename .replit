@@ -18,3 +18,7 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[nix]
+channel = "stable-25_05"
+packages = ["glib", "nss", "atk", "cups", "pango", "gtk3", "libdrm", "mesa", "alsa-lib", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "xorg.libXi", "xorg.libX11", "chromium"]
