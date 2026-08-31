@@ -1,6 +1,6 @@
-# [Project name]
+# CodeSprint Typing Trainer
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+CodeSprint is a local-first coding typing trainer that helps developers practice real syntax, track speed and accuracy, and unlock progressive difficulty tiers.
 
 ## Run & Operate
 
@@ -22,15 +22,23 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/codesprint-typing/src/App.tsx` — the practice experience, local persistence, seeded drills, progress, library, and workspace views.
+- `artifacts/codesprint-typing/src/index.css` — the app theme, editor-inspired surfaces, responsive layout, and motion.
+- `artifacts/codesprint-typing/.replit-artifact/artifact.toml` — web artifact routing and workflow metadata.
+- `artifacts/api-server` — shared API scaffold retained for future server-backed features; the first CodeSprint build is local-first.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The first build is intentionally local-first: runs, custom snippets, credits, unlocked tiers, and theme preferences use browser storage.
+- Code drills are seeded in the frontend so the practice loop works immediately without an account or network dependency.
+- The app uses a responsive single-page shell with section navigation rather than separate server routes.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Practice real JavaScript, TypeScript, React, shell, SQL, and Python syntax across Small, Medium, Hard, Advanced, and Legendary tiers.
+- Measure WPM, CPM, accuracy, elapsed time, errors, points, and credits for each completed run.
+- Add, search, filter, select, and delete personal code snippets locally.
+- Review run history and progression insights, and customize between multiple palettes and typing preferences.
 
 ## User preferences
 

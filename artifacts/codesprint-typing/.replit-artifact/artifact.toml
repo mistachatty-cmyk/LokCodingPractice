@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "CodeSprint Typing Trainer"
+description = "A responsive coding typing practice app with real code snippets across five difficulty tiers, live speed and accuracy scoring, unlockable themes, and locally saved custom snippets."
+version = "1.0.0"
+id = "artifacts/codesprint-typing"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19793
+
+[services.development]
+run = "pnpm --filter @workspace/codesprint-typing run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/codesprint-typing", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/codesprint-typing/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19793"
+BASE_PATH = "/"
