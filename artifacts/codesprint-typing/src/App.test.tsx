@@ -134,20 +134,34 @@ describe('local library and workspace regressions', () => {
   });
 
   it('browses tiered static and animated palettes with locked tiers', () => {
-    expect(paletteCatalog).toHaveLength(22);
+    expect(paletteCatalog).toHaveLength(32);
+    expect(new Set(paletteCatalog.map(palette => palette.id)).size).toBe(32);
     expect(new Set(paletteCatalog.map(palette => palette.tier))).toEqual(new Set(['Small', 'Medium', 'Hard', 'Advanced', 'Legendary']));
+    const expectedTierCounts = { Small: 7, Medium: 7, Hard: 6, Advanced: 6, Legendary: 6 } as const;
+    for (const [tier, count] of Object.entries(expectedTierCounts)) {
+      expect(paletteCatalog.filter(palette => palette.tier === tier)).toHaveLength(count);
+    }
+    expect(paletteCatalog.find(palette => palette.id === 'matrix-rain')).toMatchObject({
+      name: 'Matrix rain',
+      tier: 'Small',
+      animated: true,
+      animation: 'drift',
+    });
+    expect(paletteCatalog.find(palette => palette.id === 'matrix-rain')?.colors).toEqual(['#06130d', '#43ff9a', '#b5ffcf']);
     expect(paletteCatalog.some(palette => palette.animated)).toBe(true);
     expect(paletteCatalog.some(palette => !palette.animated)).toBe(true);
-    expect(paletteCatalog.filter(palette => palette.animated)).toHaveLength(18);
+    expect(paletteCatalog.filter(palette => palette.animated)).toHaveLength(24);
     expect(new Set(paletteCatalog.filter(palette => palette.animated).map(palette => palette.animation))).toEqual(new Set(['drift', 'pulse', 'orbit']));
 
     render(<App />);
     navigate('link-nav-workspace');
 
-    expect(screen.getByTestId('text-palette-count').textContent).toContain('22 palettes');
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('32 palettes');
     expect(screen.getByTestId('palette-ambient')).toBeTruthy();
     expect(document.documentElement.style.getPropertyValue('--palette-gradient')).toContain('radial-gradient');
     expect((screen.getByTestId('button-palette-tier-hard') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('button-theme-matrix-rain') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId('button-theme-crt-afterglow') as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByTestId('button-theme-circuit-bloom') as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByTestId('button-theme-tidepool-signal') as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(screen.getByTestId('button-theme-circuit-bloom'));
@@ -160,9 +174,9 @@ describe('local library and workspace regressions', () => {
     expect(document.querySelector('[data-palette-id]')?.classList.contains('palette-animated')).toBe(false);
     expect(screen.queryByTestId('palette-ambient')).toBeNull();
     fireEvent.click(screen.getByTestId('button-palette-filter-animated'));
-    expect(screen.getByTestId('text-palette-count').textContent).toContain('18 / 22');
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('24 / 32');
     fireEvent.click(screen.getByTestId('button-palette-level-2'));
-    expect(screen.getByTestId('text-palette-count').textContent).toContain('5 / 22');
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('10 / 32');
     expect(JSON.parse(window.localStorage.getItem('codesprint_palette_filter') ?? 'null')).toBe('Animated');
     expect(JSON.parse(window.localStorage.getItem('codesprint_palette_level') ?? 'null')).toBe(2);
   });
