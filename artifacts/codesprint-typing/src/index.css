@@ -137,6 +137,156 @@ button { cursor: pointer; }
   isolation: isolate;
   box-shadow: inset 0 1px 0 hsl(0 0% 100% / .08), inset 0 -18px 28px hsl(0 0% 0% / .15);
 }
+.palette-card {
+  isolation: isolate;
+  box-shadow: 0 14px 34px hsl(220 40% 3% / .12), inset 0 1px 0 hsl(0 0% 100% / .035);
+}
+.palette-card::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  background: linear-gradient(145deg, hsl(var(--primary) / .08), transparent 34%, hsl(var(--accent) / .045));
+  opacity: .45;
+}
+.palette-card:hover,
+.palette-card:focus-visible {
+  box-shadow: 0 18px 42px hsl(220 40% 3% / .2), inset 0 1px 0 hsl(0 0% 100% / .06);
+}
+.palette-card:focus-visible {
+  outline: 2px solid hsl(var(--primary) / .75);
+  outline-offset: 3px;
+}
+.palette-card.is-selected {
+  box-shadow: 0 18px 42px hsl(var(--primary) / .12), 0 0 0 1px hsl(var(--primary) / .14), inset 0 1px 0 hsl(0 0% 100% / .08);
+}
+.palette-card-tier-small { --palette-card-depth: .4; }
+.palette-card-tier-medium { --palette-card-depth: .55; }
+.palette-card-tier-hard { --palette-card-depth: .7; }
+.palette-card-tier-advanced { --palette-card-depth: .84; }
+.palette-card-tier-legendary { --palette-card-depth: 1; }
+.palette-card-tier-medium::before { opacity: .56; }
+.palette-card-tier-hard::before { opacity: .68; }
+.palette-card-tier-advanced::before { opacity: .8; }
+.palette-card-tier-legendary::before {
+  opacity: .95;
+  background: linear-gradient(145deg, hsl(var(--primary) / .12), transparent 32%, hsl(var(--accent) / .09));
+}
+.palette-card-tier-advanced .palette-preview,
+.palette-card-tier-legendary .palette-preview {
+  border-color: hsl(var(--primary) / .22);
+}
+.palette-card-tier-legendary .palette-preview {
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / .15), inset 0 -28px 40px hsl(0 0% 0% / .24), 0 10px 28px hsl(var(--palette-glow-a) / .12);
+}
+.palette-card-tier-hard .palette-preview,
+.palette-card-tier-advanced .palette-preview,
+.palette-card-tier-legendary .palette-preview {
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / .11), inset 0 -24px 36px hsl(0 0% 0% / .2), 0 8px 22px hsl(var(--palette-glow-a) / calc(.08 * var(--palette-card-depth)));
+}
+.palette-preview-index,
+.palette-preview-state {
+  position: absolute;
+  top: 10px;
+  z-index: 3;
+  font-size: 8px;
+  letter-spacing: .16em;
+  color: hsl(0 0% 100% / .62);
+  text-shadow: 0 1px 8px hsl(0 0% 0% / .55);
+}
+.palette-preview-index { left: 12px; }
+.palette-preview-state {
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 7px;
+  letter-spacing: .12em;
+}
+.palette-state-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: hsl(0 0% 100% / .45);
+}
+.palette-state-dot.is-animated {
+  background: var(--motif-a);
+  box-shadow: 0 0 8px var(--motif-a);
+}
+.palette-preview-animated .palette-state-dot.is-animated {
+  animation: state-signal 2.4s ease-in-out infinite;
+}
+@keyframes state-signal {
+  50% { opacity: .42; transform: scale(.72); }
+}
+.palette-level-track {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+  min-width: 0;
+}
+.palette-level-segment {
+  width: 14px;
+  height: 3px;
+  border-radius: 999px;
+  background: hsl(var(--border) / .8);
+}
+.palette-level-segment.is-filled {
+  background: hsl(var(--primary) / .75);
+  box-shadow: 0 0 8px hsl(var(--primary) / .18);
+}
+.palette-level-track > :last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.palette-editor-surface {
+  box-shadow: 0 18px 44px hsl(220 40% 3% / .16), inset 0 1px 0 hsl(0 0% 100% / .045);
+}
+.palette-editor-surface-tier-hard,
+.palette-editor-surface-tier-advanced,
+.palette-editor-surface-tier-legendary {
+  box-shadow: 0 22px 54px hsl(var(--palette-glow-a) / .11), inset 0 1px 0 hsl(0 0% 100% / .07);
+}
+.palette-editor-live-label {
+  color: hsl(var(--primary));
+  letter-spacing: .12em;
+}
+.palette-editor-motif-caption {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  left: 14px;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font: 700 7px/1 var(--app-font-mono);
+  letter-spacing: .16em;
+  color: hsl(var(--foreground) / .62);
+}
+.palette-ambient-motif {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: .14;
+  mask-image: linear-gradient(90deg, #000, transparent 82%);
+}
+.palette-ambient-motif .palette-motif {
+  opacity: .8;
+  transform: scale(1.65);
+  transform-origin: 12% 20%;
+}
+.palette-ambient-motif .palette-motif::after {
+  background: linear-gradient(180deg, transparent 30%, hsl(0 0% 0% / .38));
+}
+.palette-ambient-motif .palette-motif-label {
+  display: none;
+}
 .palette-editor-motif { isolation: isolate; }
 .palette-motif {
   position: absolute;
@@ -360,6 +510,34 @@ button { cursor: pointer; }
 .palette-preview-orbit {
   animation: palette-preview-orbit 13s linear infinite;
 }
+/* Motif motion is opt-in. Static palettes can share the same art direction,
+   but only animated previews and the live room are allowed to move. */
+.palette-preview:not(.palette-preview-animated) .palette-matrix-columns span,
+.palette-preview:not(.palette-preview-animated) .palette-vhs-bars span,
+.palette-preview:not(.palette-preview-animated) .palette-vhs-tracking,
+.palette-preview:not(.palette-preview-animated) .palette-deep-bubbles span,
+.palette-preview:not(.palette-preview-animated) .palette-fungal-network span,
+.palette-preview:not(.palette-preview-animated) .palette-solar-rays,
+.palette-editor-motif:not(.palette-preview-animated) .palette-matrix-columns span,
+.palette-editor-motif:not(.palette-preview-animated) .palette-vhs-bars span,
+.palette-editor-motif:not(.palette-preview-animated) .palette-vhs-tracking,
+.palette-editor-motif:not(.palette-preview-animated) .palette-deep-bubbles span,
+.palette-editor-motif:not(.palette-preview-animated) .palette-fungal-network span,
+.palette-editor-motif:not(.palette-preview-animated) .palette-solar-rays {
+  animation: none;
+}
+.palette-preview-animated .palette-matrix-columns span,
+.palette-ambient-motif .palette-matrix-columns span { animation: matrix-drop 4.8s linear infinite; }
+.palette-preview-animated .palette-vhs-bars span,
+.palette-ambient-motif .palette-vhs-bars span { animation: vhs-jitter 2.3s steps(2, end) infinite; }
+.palette-preview-animated .palette-vhs-tracking,
+.palette-ambient-motif .palette-vhs-tracking { animation: vhs-track 3.4s linear infinite; }
+.palette-preview-animated .palette-deep-bubbles span,
+.palette-ambient-motif .palette-deep-bubbles span { animation: bubble-rise 5.5s ease-in infinite; }
+.palette-preview-animated .palette-fungal-network span,
+.palette-ambient-motif .palette-fungal-network span { animation: fungal-pulse 3s ease-in-out infinite; }
+.palette-preview-animated .palette-solar-rays,
+.palette-ambient-motif .palette-solar-rays { animation: solar-spin 18s linear infinite; }
 @keyframes palette-drift {
   from { background-position: 0% 0%; }
   to { background-position: 100% 80%; }

@@ -1,2 +1,3 @@
 - [React route state preservation](react-route-state.md) — keep routed component identity stable when parent state updates can occur during an active flow.
 - [Local browser checks](local-browser-checks.md) — Playwright needs a system Chromium fallback and local-only checks should block external requests.
+- [Palette motion boundaries](palette-motion-boundaries.md) — shared motif markup must keep animation opt-in so static palette choices remain genuinely still.
