@@ -133,15 +133,26 @@ button { cursor: pointer; }
 @keyframes blink { 50% { opacity: 0; } }
 .progress-fill { transition: width .35s ease; }
 .palette-animated {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+.palette-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   background-image: var(--palette-gradient);
-  background-size: 125% 125%;
-  animation: palette-drift 18s ease-in-out infinite alternate;
+  background-size: 165% 165%;
+  background-position: 0% 0%;
+  opacity: .78;
+  animation: palette-drift 14s ease-in-out infinite alternate;
 }
-.palette-animated[data-palette-animation="pulse"] {
-  animation: palette-pulse 8s ease-in-out infinite alternate;
+.palette-animated[data-palette-animation="pulse"] .palette-ambient {
+  animation: palette-pulse 5.5s ease-in-out infinite alternate;
 }
-.palette-animated[data-palette-animation="orbit"] {
-  animation: palette-orbit 22s linear infinite;
+.palette-animated[data-palette-animation="orbit"] .palette-ambient {
+  animation: palette-orbit 12s linear infinite;
 }
 .palette-preview-animated {
   background-size: 160% 160%;
@@ -158,8 +169,8 @@ button { cursor: pointer; }
   to { background-position: 100% 80%; }
 }
 @keyframes palette-pulse {
-  from { background-size: 110% 110%; background-position: 0% 0%; }
-  to { background-size: 145% 145%; background-position: 75% 55%; }
+  from { background-size: 135% 135%; background-position: 0% 0%; opacity: .6; }
+  to { background-size: 220% 220%; background-position: 75% 55%; opacity: .92; }
 }
 @keyframes palette-orbit {
   from { background-position: 0% 0%; }

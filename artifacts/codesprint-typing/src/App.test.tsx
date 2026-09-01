@@ -145,6 +145,8 @@ describe('local library and workspace regressions', () => {
     navigate('link-nav-workspace');
 
     expect(screen.getByTestId('text-palette-count').textContent).toContain('22 palettes');
+    expect(screen.getByTestId('palette-ambient')).toBeTruthy();
+    expect(document.documentElement.style.getPropertyValue('--palette-gradient')).toContain('radial-gradient');
     expect((screen.getByTestId('button-palette-tier-hard') as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByTestId('button-theme-circuit-bloom') as HTMLButtonElement).disabled).toBe(false);
     expect((screen.getByTestId('button-theme-tidepool-signal') as HTMLButtonElement).disabled).toBe(false);
@@ -153,6 +155,10 @@ describe('local library and workspace regressions', () => {
     expect(JSON.parse(window.localStorage.getItem('codesprint_theme') ?? 'null')).toBe('circuit-bloom');
     fireEvent.click(screen.getByTestId('button-theme-tidepool-signal'));
     expect(document.querySelector('[data-palette-id]')?.getAttribute('data-palette-animation')).toBe('orbit');
+    expect(screen.getByTestId('palette-ambient')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('button-theme-violet'));
+    expect(document.querySelector('[data-palette-id]')?.classList.contains('palette-animated')).toBe(false);
+    expect(screen.queryByTestId('palette-ambient')).toBeNull();
     fireEvent.click(screen.getByTestId('button-palette-filter-animated'));
     expect(screen.getByTestId('text-palette-count').textContent).toContain('18 / 22');
     fireEvent.click(screen.getByTestId('button-palette-level-2'));
@@ -170,6 +176,7 @@ describe('local library and workspace regressions', () => {
     fireEvent.click(screen.getByTestId('button-motion-off'));
     expect(screen.getByTestId('text-motion-status').textContent).toContain('Motion is disabled');
     expect(document.querySelector('.motion-reduced')).toBeTruthy();
+    expect(screen.queryByTestId('palette-ambient')).toBeNull();
     await waitFor(() => expect(JSON.parse(window.localStorage.getItem('codesprint_motion') ?? 'null')).toBe('off'));
   });
 
@@ -193,6 +200,7 @@ describe('local library and workspace regressions', () => {
       navigate('link-nav-workspace');
       fireEvent.click(screen.getByTestId('button-theme-ember'));
       expect(document.querySelector('[data-palette-id]')?.classList.contains('palette-animated')).toBe(false);
+      expect(screen.queryByTestId('palette-ambient')).toBeNull();
       expect(screen.getByTestId('text-motion-status').textContent).toContain('System reduced motion');
     } finally {
       Object.defineProperty(window, 'matchMedia', { configurable: true, value: previousMatchMedia });

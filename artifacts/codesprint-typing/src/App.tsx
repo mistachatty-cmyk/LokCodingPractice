@@ -107,7 +107,7 @@ function createThemeTokens(seed: PaletteSeed): ThemeTokens {
     '--destructive-foreground': seed.background,
     '--palette-glow-a': seed.glowA,
     '--palette-glow-b': seed.glowB,
-    '--palette-gradient': `radial-gradient(circle at 12% 8%, hsl(${seed.glowA} / .16), transparent 40%), radial-gradient(circle at 88% 14%, hsl(${seed.glowB} / .14), transparent 38%)`,
+    '--palette-gradient': `radial-gradient(ellipse 72% 58% at 8% 4%, hsl(${seed.glowA} / .3), transparent 68%), radial-gradient(ellipse 68% 62% at 92% 18%, hsl(${seed.glowB} / .24), transparent 65%)`,
   };
 }
 
@@ -170,6 +170,7 @@ function AppShell({ children, theme, totalPoints, credits, animated, animation, 
   const palette = paletteCatalog.find(item => item.id === theme);
   return (
     <div className={classNames('min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]', animated && 'palette-animated', motionReduced && 'motion-reduced')} data-palette-id={theme} data-palette-animation={animation}>
+      {animated && <div className="palette-ambient" aria-hidden="true" data-testid="palette-ambient" />}
       <div className="noise" />
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] border-r border-[hsl(var(--border))] bg-[hsl(var(--background)/.88)] px-5 py-6 backdrop-blur-xl md:flex md:flex-col">
         <Brand />
@@ -195,7 +196,7 @@ function AppShell({ children, theme, totalPoints, credits, animated, animation, 
         <button onClick={() => setMobileMenu(value => !value)} className="rounded-lg border border-[hsl(var(--border))] p-2 text-[hsl(var(--muted-foreground))]" data-testid="button-mobile-menu" aria-label="Open navigation"><Command size={18} /></button>
       </header>
       {mobileMenu && <div className="fixed inset-x-0 top-[68px] z-30 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-xl md:hidden">{navItems.map(item => <NavItem key={item.href} item={item} active={location === item.href} onNavigate={() => setMobileMenu(false)} />)}</div>}
-      <main className="mobile-scroll min-h-[100dvh] md:ml-[248px]">
+      <main className="relative z-10 mobile-scroll min-h-[100dvh] md:ml-[248px]">
         <div className="mx-auto max-w-[1420px] px-5 py-8 md:px-10 md:py-12">{children}</div>
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-2 py-2 backdrop-blur-xl md:hidden" data-testid="mobile-bottom-nav">
