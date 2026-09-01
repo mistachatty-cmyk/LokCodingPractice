@@ -42,7 +42,8 @@ Lokcodingpractice is a local-first coding typing trainer that helps developers p
 - Build scheduled Daily, Weekly, and Monthly Live Studio challenges while watching a safe counter, palette, task, ranking, or terminal projection update as code is typed.
 - Measure WPM, CPM, accuracy, elapsed time, errors, points, and credits for each completed run.
 - Add, search, filter, select, and delete personal code snippets locally.
-- Review run history and progression insights, and customize between multiple palettes and typing preferences.
+- Review run history and progression insights, and customize between 20 tiered static/animated palettes with level filters, lock states, and reduced-motion preferences.
+- Browse Daily Live Studio targets by day 1–31, with prominent Daily/Weekly/Monthly cadence tabs and stable local calendar selection.
 - Share completed Live Studio results through the device share sheet, copied deep links, or public social share links.
 
 ## User preferences

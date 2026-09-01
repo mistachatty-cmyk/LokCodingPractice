@@ -40,7 +40,7 @@ export type PaletteDefinition = {
 type PaletteTierFilter = Tier | 'All';
 type PaletteVariantFilter = 'All' | 'Static' | 'Animated';
 type MotionPreference = 'auto' | 'on' | 'off';
-type PaletteSeed = Omit<PaletteDefinition, 'tokens'> & {
+type PaletteSeed = Omit<PaletteDefinition, 'tokens' | 'animated'> & {
   background: string;
   foreground: string;
   primary: string;
@@ -379,7 +379,7 @@ function Themes({ theme, setTheme, totalPoints, motionPreference, setMotionPrefe
         {filteredPalettes.map(palette => {
           const unlocked = isUnlocked(palette);
           const selected = theme === palette.id;
-          return <button key={palette.id} type="button" disabled={!unlocked} aria-pressed={selected} onClick={() => { if (unlocked) setTheme(palette.id); }} className={classNames('group relative overflow-hidden rounded-2xl border p-4 text-left transition-all', selected ? 'border-[hsl(var(--primary)/.75)] bg-[hsl(var(--primary)/.09)] shadow-[0_0_0_1px_hsl(var(--primary)/.14)]' : unlocked ? 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.3)]' : 'cursor-not-allowed border-[hsl(var(--border)/.5)] bg-[hsl(var(--background)/.2)] opacity-55')} data-testid={`button-palette-${palette.id}`} data-palette-animated={palette.animated ? 'true' : 'false'}>
+          return <button key={palette.id} type="button" disabled={!unlocked} aria-pressed={selected} aria-label={`${palette.name}, ${palette.tier} tier, level ${palette.level}${palette.animated ? ', animated' : ', static'}`} onClick={() => { if (unlocked) setTheme(palette.id); }} className={classNames('group relative overflow-hidden rounded-2xl border p-4 text-left transition-all', selected ? 'border-[hsl(var(--primary)/.75)] bg-[hsl(var(--primary)/.09)] shadow-[0_0_0_1px_hsl(var(--primary)/.14)]' : unlocked ? 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.3)]' : 'cursor-not-allowed border-[hsl(var(--border)/.5)] bg-[hsl(var(--background)/.2)] opacity-55')} data-testid={`button-theme-${palette.id}`} data-palette-id={palette.id} data-palette-animated={palette.animated ? 'true' : 'false'}>
             <div className={classNames('palette-preview relative mb-4 overflow-hidden rounded-xl border border-white/10 p-3', palette.animated && 'palette-preview-animated')} style={{ background: `linear-gradient(135deg, ${palette.colors[0]}, ${palette.colors[0]} 45%, ${palette.colors[1]})` }}>
               <div className="flex items-center gap-1.5 border-b border-white/15 pb-2"><span className="size-1.5 rounded-full bg-white/50" /><span className="size-1.5 rounded-full bg-white/35" /><span className="size-1.5 rounded-full bg-white/25" /><span className="ml-2 font-mono text-[8px] text-white/60">practice.ts</span></div>
               <div className="mt-3 space-y-1 font-mono text-[9px]"><div className="text-white/45">01 <span style={{ color: palette.colors[1] }}>const</span> signal = <span style={{ color: palette.colors[2] }}>focus</span>();</div><div className="text-white/45">02 <span style={{ color: palette.colors[1] }}>await</span> signal.<span style={{ color: palette.colors[2] }}>repeat</span>();</div></div>
@@ -399,7 +399,7 @@ function Themes({ theme, setTheme, totalPoints, motionPreference, setMotionPrefe
         <div className="mt-7 space-y-5">
           <Preference label="Show key hints" detail="Keep small reminders beneath practice" enabled />
           <Preference label="Sound feedback" detail="Subtle tones for clean streaks" enabled={false} />
-          <div className="border-t border-[hsl(var(--border))] pt-5"><div className="text-sm">Palette motion</div><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Only low-amplitude background gradients move. Code text and layout stay still.</p><div className="mt-3 flex gap-1 rounded-lg border border-[hsl(var(--border))] p-1" role="radiogroup" aria-label="Palette motion preference">{(['auto', 'on', 'off'] as MotionPreference[]).map(option => <button key={option} type="button" role="radio" aria-checked={motionPreference === option} onClick={() => setMotionPreference(option)} className={classNames('flex-1 rounded-md px-2 py-2 text-[10px] capitalize', motionPreference === option ? 'bg-[hsl(var(--primary)/.14)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]')} data-testid={`button-motion-${option}`}>{option}</button>)}</div><div className="mt-2 text-[10px] text-[hsl(var(--muted-foreground))]" data-testid="text-motion-status">{motionPreference === 'auto' ? (systemReducedMotion ? 'System reduced motion is active.' : 'Following your system motion setting.') : motionPreference === 'on' ? 'Motion is enabled for animated palettes.' : 'Motion is disabled.'}</div></div>
+          <div className="border-t border-[hsl(var(--border))] pt-5"><div className="text-sm">Palette motion</div><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Only low-amplitude background gradients move. Code text and layout stay still.</p><div className="mt-3 flex gap-1 rounded-lg border border-[hsl(var(--border))] p-1" role="radiogroup" aria-label="Palette motion preference">{(['auto', 'on', 'off'] as MotionPreference[]).map(option => <button key={option} type="button" role="radio" aria-checked={motionPreference === option} onClick={() => setMotionPreference(option)} className={classNames('flex-1 rounded-md px-2 py-2 text-[10px] capitalize', motionPreference === option ? 'bg-[hsl(var(--primary)/.14)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]')} data-testid={`button-motion-${option}`}>{option}</button>)}</div><div className="mt-2 text-[10px] text-[hsl(var(--muted-foreground))]" data-testid="text-motion-status">{systemReducedMotion ? 'System reduced motion is active; palette motion stays off.' : motionPreference === 'auto' ? 'Following your system motion setting.' : motionPreference === 'on' ? 'Motion is enabled for animated palettes.' : 'Motion is disabled.'}</div></div>
           <Preference label="Focus mode" detail="Hide stats while you type" enabled={false} />
         </div>
       </div>
@@ -733,7 +733,7 @@ function RouterApp() {
   const credits = runs.reduce((sum, run) => sum + Math.max(3, Math.round(run.points / 18)), 0) + liveBuilds.reduce((sum, build) => sum + Math.max(3, Math.round(build.points / 18)), 0);
   const selectedPalette = paletteCatalog.find(item => item.id === theme) ?? paletteCatalog[0];
   const paletteUnlocked = totalPoints >= tierMeta[selectedPalette.tier].unlock;
-  const motionReduced = motionPreference === 'off' || (motionPreference === 'auto' && systemReducedMotion);
+  const motionReduced = systemReducedMotion || motionPreference === 'off';
   const animated = selectedPalette.animated && !motionReduced;
   useEffect(() => {
     window.localStorage.setItem('codesprint_theme', JSON.stringify(theme));

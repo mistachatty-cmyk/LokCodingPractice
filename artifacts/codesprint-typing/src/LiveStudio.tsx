@@ -411,6 +411,7 @@ export default function LiveStudio({
                 className={cn('group rounded-xl border px-3 py-3.5 text-left transition-all duration-200', cadence === option.value ? 'border-[hsl(var(--primary)/.6)] bg-[hsl(var(--primary)/.1)] shadow-[inset_0_-2px_0_hsl(var(--primary))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card)/.48)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.3)]')}
                 data-testid={`button-cadence-${option.value.toLowerCase()}`}
                   aria-selected={cadence === option.value}
+                  aria-label={option.value}
                   aria-controls="live-studio-cadence-context"
               >
                 <span className={cn('block font-mono text-[11px] font-bold', cadence === option.value ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--foreground))]')}>{option.value}</span>

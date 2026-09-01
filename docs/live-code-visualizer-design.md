@@ -10,6 +10,7 @@ The first release is intentionally local-first and deterministic. The current ch
 
 1. Open **Live Studio** from the main navigation.
 2. Choose **Daily**, **Weekly**, or **Monthly**.
+   - Daily includes a horizontal day rail for days 1–31 of the current month; changing the day is an explicit target selection.
 3. Choose an unlocked tier: **Small**, **Medium**, **Hard**, **Advanced**, or **Legendary**.
 4. Receive a stable challenge for that cadence, tier, and calendar period. The target includes a title, language, objective, code, and visualizer kind.
 5. Start the session and type the target. Correct characters turn mint, incorrect characters remain marked, backspace removes the last character, and timing/accuracy update live.
@@ -69,6 +70,12 @@ The browser validates the response again before replacing the deterministic cata
 Live completions are stored in `codesprint_live_builds`, separate from the existing `codesprint_runs`, `codesprint_custom_snippets`, and `codesprint_theme` records. Each build stores its challenge identity, cadence, tier, metrics, points, completion timestamp, and final safe preview.
 
 Live build points and credits contribute to the existing progress totals and tier unlocking. Existing practice run and snippet formats remain unchanged.
+
+## Palette progression
+
+Workspace palettes are a local catalog of 20 deterministic definitions: four levels inside each of the five practice tiers. Small and Medium are available immediately; Hard, Advanced, and Legendary unlock at the same point thresholds used by practice and Live Studio. The browser supports tier, level, and Static/Animated filters and preserves those selections in local storage.
+
+Animated palette variants move only low-amplitude background gradients and preview surfaces. Code text, caret, layout, and projection content do not animate. Motion defaults to the browser's `prefers-reduced-motion` setting and can be explicitly enabled or disabled in Workspace. The legacy `midnight`, `ember`, and `mint` IDs remain valid in `codesprint_theme`.
 
 ## Sharing
 

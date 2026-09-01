@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import App from './App';
+import { paletteCatalog } from './App';
 import { accuracyBucket, trackEvent } from './lib/analytics';
 import { curatedLiveStudioChallengeCatalog, getLiveStudioPeriodKey, projectLiveStudioPreview, resolveLiveStudioChallenge, selectLiveStudioChallenge } from './liveStudioData';
 
@@ -131,6 +132,63 @@ describe('local library and workspace regressions', () => {
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('148 56% 72%');
     await waitFor(() => expect(JSON.parse(window.localStorage.getItem('codesprint_theme') ?? 'null')).toBe('mint'));
   });
+
+  it('browses tiered static and animated palettes with locked tiers', () => {
+    expect(paletteCatalog).toHaveLength(20);
+    expect(new Set(paletteCatalog.map(palette => palette.tier))).toEqual(new Set(['Small', 'Medium', 'Hard', 'Advanced', 'Legendary']));
+    expect(paletteCatalog.some(palette => palette.animated)).toBe(true);
+    expect(paletteCatalog.some(palette => !palette.animated)).toBe(true);
+
+    render(<App />);
+    navigate('link-nav-workspace');
+
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('20 palettes');
+    expect((screen.getByTestId('button-palette-tier-hard') as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByTestId('button-palette-filter-animated'));
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('10 / 20');
+    fireEvent.click(screen.getByTestId('button-palette-level-2'));
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('5 / 20');
+    expect(JSON.parse(window.localStorage.getItem('codesprint_palette_filter') ?? 'null')).toBe('Animated');
+    expect(JSON.parse(window.localStorage.getItem('codesprint_palette_level') ?? 'null')).toBe(2);
+  });
+
+  it('persists explicit reduced motion and preserves legacy palette ids', async () => {
+    window.localStorage.setItem('codesprint_theme', JSON.stringify('mint'));
+    render(<App />);
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('148 56% 72%');
+    navigate('link-nav-workspace');
+
+    fireEvent.click(screen.getByTestId('button-motion-off'));
+    expect(screen.getByTestId('text-motion-status').textContent).toContain('Motion is disabled');
+    expect(document.querySelector('.motion-reduced')).toBeTruthy();
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem('codesprint_motion') ?? 'null')).toBe('off'));
+  });
+
+  it('keeps animated palettes still when the browser requests reduced motion', () => {
+    const previousMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: () => ({
+        matches: true,
+        media: '(prefers-reduced-motion: reduce)',
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+    try {
+      render(<App />);
+      navigate('link-nav-workspace');
+      fireEvent.click(screen.getByTestId('button-theme-ember'));
+      expect(document.querySelector('[data-palette-id]')?.classList.contains('palette-animated')).toBe(false);
+      expect(screen.getByTestId('text-motion-status').textContent).toContain('System reduced motion');
+    } finally {
+      Object.defineProperty(window, 'matchMedia', { configurable: true, value: previousMatchMedia });
+    }
+  });
 });
 
 describe('live code visualizer studio', () => {
@@ -241,6 +299,25 @@ describe('live code visualizer studio', () => {
 
     expect((screen.getByTestId('input-live-code') as HTMLTextAreaElement).value).toBe('');
     expect(screen.getByRole('heading', { name: 'List the workspace' })).toBeTruthy();
+  });
+
+  it('exposes cadence tabs and resets only after an explicit Daily day selection', () => {
+    render(<App />);
+    navigate('link-nav-live-studio');
+
+    expect(screen.getByRole('tab', { name: 'Daily' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByTestId('daily-day-rail')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('button-live-start'));
+    fireEvent.change(screen.getByTestId('input-live-code'), { target: { value: 'const' } });
+    expect((screen.getByTestId('input-live-code') as HTMLTextAreaElement).value).toBe('const');
+
+    const currentDay = new Date().getDate();
+    const nextDay = currentDay === 31 ? 30 : currentDay + 1;
+    fireEvent.click(screen.getByTestId(`button-live-day-${nextDay}`));
+
+    expect((screen.getByTestId('input-live-code') as HTMLTextAreaElement).value).toBe('');
+    expect(screen.getByTestId('text-live-cadence-context').textContent).toContain(`Day ${nextDay}`);
+    expect(screen.getByTestId(`button-live-day-${nextDay}`).getAttribute('aria-selected')).toBe('true');
   });
 
   it('creates and persists a live build, then exposes share fallbacks', async () => {
