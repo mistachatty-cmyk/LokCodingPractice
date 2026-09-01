@@ -132,6 +132,39 @@ button { cursor: pointer; }
 .blink { animation: blink 1s step-end infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 .progress-fill { transition: width .35s ease; }
+.palette-animated {
+  background-image: var(--palette-gradient);
+  background-size: 125% 125%;
+  animation: palette-drift 18s ease-in-out infinite alternate;
+}
+.palette-preview-animated {
+  background-size: 160% 160%;
+  animation: palette-preview-drift 9s ease-in-out infinite alternate;
+}
+@keyframes palette-drift {
+  from { background-position: 0% 0%; }
+  to { background-position: 100% 80%; }
+}
+@keyframes palette-preview-drift {
+  from { background-position: 0% 20%; }
+  to { background-position: 100% 80%; }
+}
+.motion-reduced *,
+.motion-reduced *::before,
+.motion-reduced *::after {
+  animation: none !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 @media (max-width: 767px) {
   .mobile-scroll { padding-bottom: 92px; }

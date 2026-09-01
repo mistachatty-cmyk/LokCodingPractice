@@ -82,6 +82,8 @@ export type LiveStudioProps = {
   errorCount?: number;
   unlockedTiers?: LiveStudioTier[];
   onCadenceChange?: (cadence: LiveStudioCadence) => void;
+  dailyDay?: number;
+  onDailyDayChange?: (day: number) => void;
   onTierChange?: (tier: LiveStudioTier) => void;
   onChallengeChange?: (challengeId: string) => void;
   onLibrarySelect?: (challengeId: string, tier: LiveStudioTier) => void;
@@ -304,6 +306,8 @@ export default function LiveStudio({
   onExternalShare,
   onLibrarySelect,
   onStart,
+  dailyDay = new Date().getDate(),
+  onDailyDayChange,
   shareUrl,
   shareText,
   shareStatus,
@@ -353,6 +357,13 @@ export default function LiveStudio({
   };
   const handleTypedChange = (event: ChangeEvent<HTMLTextAreaElement>) => onTypedChange?.(event.target.value.slice(0, target.length));
   const selectChallenge = (event: ChangeEvent<HTMLSelectElement>) => onChallengeChange?.(event.target.value);
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const cadenceContext = cadence === 'Daily'
+    ? `${now.toLocaleString([], { month: 'long' })} ${now.getFullYear()} · Day ${dailyDay} of ${daysInMonth}`
+    : cadence === 'Weekly'
+      ? `Week of ${now.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+      : `${now.toLocaleString([], { month: 'long' })} ${now.getFullYear()}`;
   useEffect(() => {
     if (isRunning && !result) textareaRef.current?.focus();
   }, [isRunning, result]);
@@ -390,21 +401,48 @@ export default function LiveStudio({
       <section className="rise rise-delay-1 relative mb-7 grid gap-5 lg:grid-cols-[1fr_1.5fr]">
         <div>
           <SectionLabel number="01">Set your cadence</SectionLabel>
-          <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Choose cadence">
+          <div className="mt-3 grid grid-cols-3 gap-2" role="tablist" aria-label="Choose cadence">
             {cadences.map(option => (
               <button
                 key={option.value}
                 type="button"
+                  role="tab"
                 onClick={() => onCadenceChange?.(option.value)}
                 className={cn('group rounded-xl border px-3 py-3.5 text-left transition-all duration-200', cadence === option.value ? 'border-[hsl(var(--primary)/.6)] bg-[hsl(var(--primary)/.1)] shadow-[inset_0_-2px_0_hsl(var(--primary))]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card)/.48)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.3)]')}
                 data-testid={`button-cadence-${option.value.toLowerCase()}`}
-                aria-pressed={cadence === option.value}
+                  aria-selected={cadence === option.value}
+                  aria-controls="live-studio-cadence-context"
               >
                 <span className={cn('block font-mono text-[11px] font-bold', cadence === option.value ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--foreground))]')}>{option.value}</span>
                 <span className="mt-1 block text-[10px] leading-4 text-[hsl(var(--muted-foreground))]">{option.detail}</span>
               </button>
             ))}
           </div>
+          <div id="live-studio-cadence-context" className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.32)] px-3 py-2 font-mono text-[10px] text-[hsl(var(--muted-foreground))]" data-testid="text-live-cadence-context">
+            <span>{cadenceContext}</span>
+            <span className="text-[hsl(var(--primary))]">{cadence === 'Daily' ? 'one target' : cadence === 'Weekly' ? 'deeper target' : 'long target'}</span>
+          </div>
+          {cadence === 'Daily' && (
+            <div className="mt-3 overflow-x-auto pb-1" role="tablist" aria-label="Choose daily day" data-testid="daily-day-rail">
+              <div className="flex min-w-max gap-1.5">
+                {Array.from({ length: 31 }, (_, index) => index + 1).map(day => (
+                  <button
+                    key={day}
+                    type="button"
+                    role="tab"
+                    disabled={day > daysInMonth}
+                    aria-selected={dailyDay === day}
+                    aria-label={`Daily challenge day ${day}${day > daysInMonth ? ', unavailable this month' : ''}`}
+                    onClick={() => onDailyDayChange?.(day)}
+                    className={cn('grid size-8 shrink-0 place-items-center rounded-lg border font-mono text-[10px] transition-colors', dailyDay === day ? 'border-[hsl(var(--primary)/.65)] bg-[hsl(var(--primary)/.14)] text-[hsl(var(--primary))]' : day <= daysInMonth ? 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)] text-[hsl(var(--muted-foreground))] hover:border-[hsl(var(--foreground)/.3)]' : 'cursor-not-allowed border-[hsl(var(--border)/.4)] text-[hsl(var(--muted-foreground)/.35)]')}
+                    data-testid={`button-live-day-${day}`}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <SectionLabel number="02">Choose the pressure</SectionLabel>

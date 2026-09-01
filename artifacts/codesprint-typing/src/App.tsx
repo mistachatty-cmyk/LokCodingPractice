@@ -25,17 +25,21 @@ import { accuracyBucket, trackEvent } from './lib/analytics';
 type Tier = 'Small' | 'Medium' | 'Hard' | 'Advanced' | 'Legendary';
 type Snippet = { id: string; title: string; language: string; tier: Tier; description: string; code: string; custom?: boolean };
 type Run = { id: string; snippetTitle: string; tier: Tier; wpm: number; cpm: number; accuracy: number; seconds: number; points: number; date: string };
-type ThemeName = 'midnight' | 'ember' | 'mint' | 'oceanic' | 'violet' | 'cobalt' | 'copper' | 'sage' | 'mono' | 'solar' | 'berry' | 'lagoon' | 'ultraviolet' | 'oxide' | 'arctic' | 'orchid' | 'aurora' | 'obsidian' | 'prism' | 'eclipse';
+export type ThemeName = 'midnight' | 'ember' | 'mint' | 'oceanic' | 'violet' | 'cobalt' | 'copper' | 'sage' | 'mono' | 'solar' | 'berry' | 'lagoon' | 'ultraviolet' | 'oxide' | 'arctic' | 'orchid' | 'aurora' | 'obsidian' | 'prism' | 'eclipse';
 type ThemeTokens = Record<string, string>;
-type PaletteDefinition = {
+export type PaletteDefinition = {
   id: ThemeName;
   name: string;
   tier: Tier;
   level: number;
+  animated: boolean;
   description: string;
   colors: string[];
   tokens: ThemeTokens;
 };
+type PaletteTierFilter = Tier | 'All';
+type PaletteVariantFilter = 'All' | 'Static' | 'Animated';
+type MotionPreference = 'auto' | 'on' | 'off';
 type PaletteSeed = Omit<PaletteDefinition, 'tokens'> & {
   background: string;
   foreground: string;
@@ -103,7 +107,7 @@ function createThemeTokens(seed: PaletteSeed): ThemeTokens {
   };
 }
 
-const paletteCatalog: PaletteDefinition[] = paletteSeeds.map(seed => ({ ...seed, tokens: createThemeTokens(seed) }));
+export const paletteCatalog: PaletteDefinition[] = paletteSeeds.map(seed => ({ ...seed, animated: seed.level % 2 === 0, tokens: createThemeTokens(seed) }));
 const themeTokens = Object.fromEntries(paletteCatalog.map(palette => [palette.id, palette.tokens])) as Record<ThemeName, ThemeTokens>;
 
 const tierMeta: Record<Tier, { tag: string; subtitle: string; color: string; points: number; unlock: number }> = {
@@ -144,11 +148,12 @@ function formatTime(seconds: number) {
 }
 function classNames(...classes: Array<string | false | undefined>) { return classes.filter(Boolean).join(' '); }
 
-function AppShell({ children, theme, totalPoints, credits, animated }: { children: ReactNode; theme: ThemeName; totalPoints: number; credits: number; animated: boolean }) {
+function AppShell({ children, theme, totalPoints, credits, animated, motionReduced }: { children: ReactNode; theme: ThemeName; totalPoints: number; credits: number; animated: boolean; motionReduced: boolean }) {
   const [location] = useLocation();
   const [mobileMenu, setMobileMenu] = useState(false);
+  const palette = paletteCatalog.find(item => item.id === theme);
   return (
-    <div className={classNames('min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]', animated && 'palette-animated')}>
+    <div className={classNames('min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]', animated && 'palette-animated', motionReduced && 'motion-reduced')} data-palette-id={theme}>
       <div className="noise" />
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] border-r border-[hsl(var(--border))] bg-[hsl(var(--background)/.88)] px-5 py-6 backdrop-blur-xl md:flex md:flex-col">
         <Brand />
@@ -180,7 +185,7 @@ function AppShell({ children, theme, totalPoints, credits, animated }: { childre
       <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-around border-t border-[hsl(var(--border))] bg-[hsl(var(--background)/.94)] px-2 py-2 backdrop-blur-xl md:hidden" data-testid="mobile-bottom-nav">
         {navItems.map(item => <NavItem key={item.href} item={item} active={location === item.href} compact />)}
       </nav>
-      <div className="fixed bottom-4 right-5 z-20 hidden items-center gap-2 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card)/.9)] px-3 py-2 text-[10px] text-[hsl(var(--muted-foreground))] backdrop-blur md:flex"><span className="size-1.5 rounded-full bg-[hsl(var(--primary))]" /> {theme === 'midnight' ? 'Night shift' : `${theme} workspace`} <span className="font-mono">⌘ K</span></div>
+       <div className="fixed bottom-4 right-5 z-20 hidden items-center gap-2 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--card)/.9)] px-3 py-2 text-[10px] text-[hsl(var(--muted-foreground))] backdrop-blur md:flex"><span className="size-1.5 rounded-full bg-[hsl(var(--primary))]" /> {palette?.name ?? 'Workspace'} <span className="font-mono">⌘ K</span></div>
     </div>
   );
 }
@@ -313,9 +318,100 @@ function SnippetCard({ snippet, canDelete, onDelete }: { snippet: Snippet; canDe
   return <article className="group rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.48)] p-5 transition-colors hover:border-[hsl(var(--foreground)/.25)]" data-testid={`card-snippet-${snippet.id}`}><div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><span className="rounded-md border border-[hsl(var(--border))] px-2 py-1 font-mono text-[10px] text-[hsl(var(--muted-foreground))]">{snippet.language}</span>{snippet.custom && <span className="rounded-md bg-[hsl(var(--accent)/.12)] px-2 py-1 font-mono text-[10px] text-[hsl(var(--accent))]">LOCAL</span>}</div><span className="font-mono text-[10px]" style={{ color: tierMeta[snippet.tier].color }}>{snippet.tier}</span></div><h2 className="mt-5 text-lg font-semibold tracking-tight">{snippet.title}</h2><p className="mt-1 min-h-10 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{snippet.description}</p><pre className="mt-5 max-h-28 overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.65)] p-3 font-mono text-[10px] leading-5 text-[hsl(var(--foreground)/.65)]">{snippet.code}</pre><div className="mt-5 flex items-center justify-between"><span className="text-[11px] text-[hsl(var(--muted-foreground))]">{snippet.code.length} characters</span>{canDelete && <button onClick={() => onDelete(snippet.id)} className="flex items-center gap-1 text-[11px] text-[hsl(var(--destructive))] opacity-70 hover:opacity-100" data-testid={`button-delete-snippet-${snippet.id}`}><Trash2 size={13} /> Delete</button>}</div></article>;
 }
 
-function Themes({ theme, setTheme }: { theme: ThemeName; setTheme: (theme: ThemeName) => void }) {
-  const themes: Array<{ id: ThemeName; name: string; description: string; colors: string[] }> = [{ id: 'midnight', name: 'Midnight terminal', description: 'Cool focus with a warm signal.', colors: ['#10151b', '#7ee7d8', '#f5b96b'] }, { id: 'ember', name: 'Ember shift', description: 'A little heat for late-night reps.', colors: ['#1d1719', '#f3b0a8', '#f3c876'] }, { id: 'mint', name: 'Quiet mint', description: 'Low contrast, high stamina.', colors: ['#111c1c', '#9de4c3', '#c4d39a'] }];
-  return <div className="rise"><PageIntro eyebrow="Workspace / 04" title="Tune the room around you." description="Your environment should disappear at the right moments. Choose a palette, then get back to the keys." /><div className="grid gap-5 md:grid-cols-3">{themes.map(item => <button key={item.id} onClick={() => setTheme(item.id)} className={classNames('rounded-2xl border p-5 text-left transition-all', theme === item.id ? 'border-[hsl(var(--primary)/.7)] bg-[hsl(var(--primary)/.07)]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] hover:-translate-y-0.5')} data-testid={`button-theme-${item.id}`}><div className="mb-8 flex items-center gap-2">{item.colors.map(color => <span key={color} className="size-7 rounded-lg border border-white/10" style={{ backgroundColor: color }} />)}{theme === item.id && <span className="ml-auto grid size-6 place-items-center rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]"><Check size={14} /></span>}</div><h2 className="font-semibold">{item.name}</h2><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{item.description}</p></button>)}</div><div className="mt-8 grid gap-6 lg:grid-cols-[.9fr_1.1fr]"><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] p-6"><div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]"><Settings2 size={14} className="text-[hsl(var(--primary))]" /> Preferences</div><div className="mt-7 space-y-5"><Preference label="Show key hints" detail="Keep small reminders beneath practice" enabled /><Preference label="Sound feedback" detail="Subtle tones for clean streaks" enabled={false} /><Preference label="Focus mode" detail="Hide stats while you type" enabled={false} /></div></div><div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] p-6"><div className="font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Preview / editor surface</div><div className="mt-5 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))]"><div className="flex items-center gap-1 border-b border-[hsl(var(--border))] px-4 py-3"><span className="size-2 rounded-full bg-[hsl(var(--destructive)/.75)]" /><span className="size-2 rounded-full bg-[hsl(var(--accent)/.75)]" /><span className="size-2 rounded-full bg-[hsl(var(--primary)/.75)]" /><span className="ml-3 font-mono text-[10px] text-[hsl(var(--muted-foreground))]">daily-practice.ts</span></div><pre className="p-5 font-mono text-xs leading-7"><span className="text-[hsl(var(--muted-foreground))]">01 </span><span className="text-[hsl(var(--primary))]">const</span> <span className="text-[hsl(var(--accent))]">practice</span> = <span className="text-[hsl(var(--foreground)/.7)]">focus</span>();{'\n'}<span className="text-[hsl(var(--muted-foreground))]">02 </span><span className="text-[hsl(var(--primary))]">await</span> practice.<span className="text-[hsl(var(--accent))]">repeat</span>();<span className="blink ml-1 inline-block h-4 border-l-2 border-[hsl(var(--primary))] align-middle" /></pre></div></div></div></div>;
+function Themes({ theme, setTheme, totalPoints, motionPreference, setMotionPreference, systemReducedMotion }: { theme: ThemeName; setTheme: (theme: ThemeName) => void; totalPoints: number; motionPreference: MotionPreference; setMotionPreference: (preference: MotionPreference) => void; systemReducedMotion: boolean }) {
+  const [tierFilter, setTierFilter] = useState<PaletteTierFilter>(() => {
+    const saved = readStorage<string>('codesprint_palette_tier', 'All');
+    return saved === 'All' || Object.prototype.hasOwnProperty.call(tierMeta, saved) ? saved as PaletteTierFilter : 'All';
+  });
+  const [levelFilter, setLevelFilter] = useState<number | 'All'>(() => {
+    const saved = readStorage<number | string>('codesprint_palette_level', 'All');
+    return saved === 'All' || (typeof saved === 'number' && Number.isInteger(saved) && saved >= 1 && saved <= 4) ? saved : 'All';
+  });
+  const [variantFilter, setVariantFilter] = useState<PaletteVariantFilter>(() => {
+    const saved = readStorage<string>('codesprint_palette_filter', 'All');
+    return saved === 'Static' || saved === 'Animated' || saved === 'All' ? saved : 'All';
+  });
+  const selectedPalette = paletteCatalog.find(item => item.id === theme) ?? paletteCatalog[0];
+  const unlockedTiers = (Object.keys(tierMeta) as Tier[]).filter(candidate => totalPoints >= tierMeta[candidate].unlock);
+  const isUnlocked = (palette: PaletteDefinition) => totalPoints >= tierMeta[palette.tier].unlock;
+  const filteredPalettes = paletteCatalog.filter(palette => (
+    (tierFilter === 'All' || palette.tier === tierFilter)
+    && (levelFilter === 'All' || palette.level === levelFilter)
+    && (variantFilter === 'All' || (variantFilter === 'Animated' ? palette.animated : !palette.animated))
+  ));
+
+  useEffect(() => {
+    if (tierFilter !== 'All' && !unlockedTiers.includes(tierFilter)) setTierFilter('All');
+  }, [tierFilter, totalPoints]);
+  useEffect(() => { window.localStorage.setItem('codesprint_palette_tier', JSON.stringify(tierFilter)); }, [tierFilter]);
+  useEffect(() => { window.localStorage.setItem('codesprint_palette_level', JSON.stringify(levelFilter)); }, [levelFilter]);
+  useEffect(() => { window.localStorage.setItem('codesprint_palette_filter', JSON.stringify(variantFilter)); }, [variantFilter]);
+
+  return <div className="rise">
+    <PageIntro eyebrow="Workspace / 04" title="Tune the room around you." description="Choose a palette from the practice tiers, preview its editor surface, and keep motion at a level that helps you focus." />
+    <section className="mb-7 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.38)] p-4 md:p-5" data-testid="palette-browser">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div>
+          <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[.18em] text-[hsl(var(--primary))]"><WandSparkles size={13} /> Palette progression</div>
+          <p className="mt-2 max-w-xl text-xs leading-5 text-[hsl(var(--muted-foreground))]">Four palette levels live inside each tier. Earn practice points to unlock the deeper rooms.</p>
+        </div>
+        <div className="rounded-lg border border-[hsl(var(--primary)/.22)] bg-[hsl(var(--primary)/.06)] px-3 py-2 font-mono text-[10px] text-[hsl(var(--primary))]" data-testid="text-palette-count">{filteredPalettes.length} / {paletteCatalog.length} palettes</div>
+      </div>
+      <div className="mt-5 overflow-x-auto pb-1" role="tablist" aria-label="Palette tiers">
+        <div className="flex min-w-max gap-2">
+          <button type="button" role="tab" aria-selected={tierFilter === 'All'} onClick={() => setTierFilter('All')} className={classNames('rounded-xl border px-3.5 py-3 text-left transition-colors', tierFilter === 'All' ? 'border-[hsl(var(--primary)/.6)] bg-[hsl(var(--primary)/.1)]' : 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)]')} data-testid="button-palette-tier-all"><span className="block font-mono text-[9px] text-[hsl(var(--muted-foreground))]">ALL</span><span className="mt-1 block text-xs font-semibold">All tiers</span></button>
+          {(Object.keys(tierMeta) as Tier[]).map((candidate) => {
+            const unlocked = unlockedTiers.includes(candidate);
+            return <button key={candidate} type="button" role="tab" disabled={!unlocked} aria-selected={tierFilter === candidate} aria-label={unlocked ? `${candidate} palette tier` : `${candidate} palette tier locked`} onClick={() => setTierFilter(candidate)} className={classNames('rounded-xl border px-3.5 py-3 text-left transition-colors', tierFilter === candidate ? 'border-[hsl(var(--primary)/.6)] bg-[hsl(var(--primary)/.1)]' : unlocked ? 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)] hover:border-[hsl(var(--foreground)/.3)]' : 'cursor-not-allowed border-[hsl(var(--border)/.5)] bg-[hsl(var(--background)/.2)] opacity-50')} data-testid={`button-palette-tier-${candidate.toLowerCase()}`}><span className="flex items-center gap-2 font-mono text-[9px]" style={{ color: unlocked ? tierMeta[candidate].color : undefined }}>{tierMeta[candidate].tag} {unlocked ? 'OPEN' : <LockKeyhole size={10} />}</span><span className="mt-1 block text-xs font-semibold">{candidate}</span><span className="mt-1 block text-[9px] text-[hsl(var(--muted-foreground))]">{unlocked ? tierMeta[candidate].subtitle : `Earn ${tierMeta[candidate].unlock} pts`}</span></button>;
+          })}
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-3 border-t border-[hsl(var(--border))] pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1 overflow-x-auto" role="group" aria-label="Filter palettes by level">
+          <span className="mr-2 shrink-0 font-mono text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Level</span>
+          {(['All', 1, 2, 3, 4] as Array<number | 'All'>).map(level => <button key={level} type="button" aria-pressed={levelFilter === level} onClick={() => setLevelFilter(level)} className={classNames('rounded-lg px-2.5 py-1.5 text-[10px]', levelFilter === level ? 'bg-[hsl(var(--primary)/.14)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]')} data-testid={`button-palette-level-${level === 'All' ? 'all' : level}`}>{level === 'All' ? 'All' : `0${level}`}</button>)}
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-[hsl(var(--border))] p-1" role="group" aria-label="Filter palettes by motion">
+          {(['All', 'Static', 'Animated'] as PaletteVariantFilter[]).map(filter => <button key={filter} type="button" aria-pressed={variantFilter === filter} onClick={() => setVariantFilter(filter)} className={classNames('rounded-md px-2.5 py-1.5 text-[10px]', variantFilter === filter ? 'bg-[hsl(var(--primary)/.14)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]')} data-testid={`button-palette-filter-${filter.toLowerCase()}`}>{filter}</button>)}
+        </div>
+      </div>
+      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {filteredPalettes.map(palette => {
+          const unlocked = isUnlocked(palette);
+          const selected = theme === palette.id;
+          return <button key={palette.id} type="button" disabled={!unlocked} aria-pressed={selected} onClick={() => { if (unlocked) setTheme(palette.id); }} className={classNames('group relative overflow-hidden rounded-2xl border p-4 text-left transition-all', selected ? 'border-[hsl(var(--primary)/.75)] bg-[hsl(var(--primary)/.09)] shadow-[0_0_0_1px_hsl(var(--primary)/.14)]' : unlocked ? 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.3)]' : 'cursor-not-allowed border-[hsl(var(--border)/.5)] bg-[hsl(var(--background)/.2)] opacity-55')} data-testid={`button-palette-${palette.id}`} data-palette-animated={palette.animated ? 'true' : 'false'}>
+            <div className={classNames('palette-preview relative mb-4 overflow-hidden rounded-xl border border-white/10 p-3', palette.animated && 'palette-preview-animated')} style={{ background: `linear-gradient(135deg, ${palette.colors[0]}, ${palette.colors[0]} 45%, ${palette.colors[1]})` }}>
+              <div className="flex items-center gap-1.5 border-b border-white/15 pb-2"><span className="size-1.5 rounded-full bg-white/50" /><span className="size-1.5 rounded-full bg-white/35" /><span className="size-1.5 rounded-full bg-white/25" /><span className="ml-2 font-mono text-[8px] text-white/60">practice.ts</span></div>
+              <div className="mt-3 space-y-1 font-mono text-[9px]"><div className="text-white/45">01 <span style={{ color: palette.colors[1] }}>const</span> signal = <span style={{ color: palette.colors[2] }}>focus</span>();</div><div className="text-white/45">02 <span style={{ color: palette.colors[1] }}>await</span> signal.<span style={{ color: palette.colors[2] }}>repeat</span>();</div></div>
+              {palette.animated && <span className="absolute -right-8 -top-8 size-24 rounded-full border border-white/20" />}
+            </div>
+            <div className="flex items-start justify-between gap-3"><div><div className="font-semibold">{palette.name}</div><div className="mt-1 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]"><span>{palette.tier}</span><span className="text-[hsl(var(--border))]">/</span><span>Level {palette.level}</span><span className="text-[hsl(var(--border))]">/</span><span>{palette.animated ? 'Animated' : 'Static'}</span></div></div>{selected ? <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]" aria-label="Selected palette"><Check size={14} /></span> : !unlocked ? <LockKeyhole size={15} className="shrink-0 text-[hsl(var(--muted-foreground))]" /> : null}</div>
+            <p className="mt-3 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{unlocked ? palette.description : `Unlocks at ${tierMeta[palette.tier].unlock} points.`}</p>
+          </button>;
+        })}
+      </div>
+      {!filteredPalettes.length && <div className="mt-5 rounded-xl border border-dashed border-[hsl(var(--border))] px-4 py-7 text-center text-xs text-[hsl(var(--muted-foreground))]">No palettes match these filters.</div>}
+      <div className="mt-4 text-xs text-[hsl(var(--muted-foreground))]" role="status" aria-live="polite" data-testid="palette-selection-status">{selectedPalette.name} is selected{selectedPalette.animated ? ' · animated variant' : ' · static variant'}.</div>
+    </section>
+    <div className="grid gap-6 lg:grid-cols-[.9fr_1.1fr]">
+      <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] p-6">
+        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]"><Settings2 size={14} className="text-[hsl(var(--primary))]" /> Preferences</div>
+        <div className="mt-7 space-y-5">
+          <Preference label="Show key hints" detail="Keep small reminders beneath practice" enabled />
+          <Preference label="Sound feedback" detail="Subtle tones for clean streaks" enabled={false} />
+          <div className="border-t border-[hsl(var(--border))] pt-5"><div className="text-sm">Palette motion</div><p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Only low-amplitude background gradients move. Code text and layout stay still.</p><div className="mt-3 flex gap-1 rounded-lg border border-[hsl(var(--border))] p-1" role="radiogroup" aria-label="Palette motion preference">{(['auto', 'on', 'off'] as MotionPreference[]).map(option => <button key={option} type="button" role="radio" aria-checked={motionPreference === option} onClick={() => setMotionPreference(option)} className={classNames('flex-1 rounded-md px-2 py-2 text-[10px] capitalize', motionPreference === option ? 'bg-[hsl(var(--primary)/.14)] text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))]')} data-testid={`button-motion-${option}`}>{option}</button>)}</div><div className="mt-2 text-[10px] text-[hsl(var(--muted-foreground))]" data-testid="text-motion-status">{motionPreference === 'auto' ? (systemReducedMotion ? 'System reduced motion is active.' : 'Following your system motion setting.') : motionPreference === 'on' ? 'Motion is enabled for animated palettes.' : 'Motion is disabled.'}</div></div>
+          <Preference label="Focus mode" detail="Hide stats while you type" enabled={false} />
+        </div>
+      </div>
+      <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] p-6">
+        <div className="font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Preview / editor surface</div>
+        <div className="mt-5 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+          <div className="flex items-center gap-1 border-b border-[hsl(var(--border))] px-4 py-3"><span className="size-2 rounded-full bg-[hsl(var(--destructive)/.75)]" /><span className="size-2 rounded-full bg-[hsl(var(--accent)/.75)]" /><span className="size-2 rounded-full bg-[hsl(var(--primary)/.75)]" /><span className="ml-3 font-mono text-[10px] text-[hsl(var(--muted-foreground))]">{selectedPalette.name.toLowerCase().replaceAll(' ', '-')}.ts</span></div>
+          <pre className="p-5 font-mono text-xs leading-7"><span className="text-[hsl(var(--muted-foreground))]">01 </span><span className="text-[hsl(var(--primary))]">const</span> <span className="text-[hsl(var(--accent))]">practice</span> = <span className="text-[hsl(var(--foreground)/.7)]">focus</span>();{'\n'}<span className="text-[hsl(var(--muted-foreground))]">02 </span><span className="text-[hsl(var(--primary))]">await</span> practice.<span className="text-[hsl(var(--accent))]">repeat</span>();<span className="blink ml-1 inline-block h-4 border-l-2 border-[hsl(var(--primary))] align-middle" /></pre>
+        </div>
+      </div>
+    </div>
+  </div>;
 }
 
 function Preference({ label, detail, enabled }: { label: string; detail: string; enabled: boolean }) {
@@ -334,11 +430,16 @@ function NotFound() {
 function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { totalPoints: number; initialBuild?: Partial<LiveStudioBuild> | null; onFinish: (build: LiveStudioBuild) => void; onAddNotice: (message: string) => void }) {
   const initialTier = curatedLiveStudioChallengeCatalog.some(challenge => challenge.tier === initialBuild?.tier) ? initialBuild?.tier as LiveStudioTier : 'Small';
   const initialCadence = initialBuild?.cadence === 'Weekly' || initialBuild?.cadence === 'Monthly' ? initialBuild.cadence : 'Daily';
+  const today = useMemo(() => new Date(), []);
+  const initialDailyDay = initialBuild?.cadence === 'Daily' && initialBuild.date ? new Date(initialBuild.date).getDate() : today.getDate();
   const initialChallenge = initialBuild?.challengeId ? curatedLiveStudioChallengeCatalog.find(challenge => challenge.id === initialBuild.challengeId && challenge.tier === initialTier) : undefined;
   const [cadence, setCadence] = useState<LiveStudioCadence>(initialCadence);
   const [tier, setTier] = useState<LiveStudioTier>(initialTier);
+  const [dailyDay, setDailyDay] = useState(initialDailyDay);
   const [challengeId, setChallengeId] = useState(initialChallenge?.id ?? '');
-  const generatedChallenge = useMemo(() => selectLiveStudioChallenge(cadence, tier), [cadence, tier]);
+  const dailyDate = useMemo(() => new Date(today.getFullYear(), today.getMonth(), dailyDay, 12), [dailyDay, today]);
+  const scheduledDate = cadence === 'Daily' ? dailyDate : today;
+  const generatedChallenge = useMemo(() => selectLiveStudioChallenge(cadence, tier, scheduledDate), [cadence, scheduledDate, tier]);
   const [rotatedChallenge, setRotatedChallenge] = useState(generatedChallenge);
   const [generationState, setGenerationState] = useState<'loading' | 'generated' | 'curated-fallback' | 'curated'>('curated');
   const [generationMessage, setGenerationMessage] = useState(initialChallenge ? 'Shared result preserved.' : 'Curated library target ready. No AI required.');
@@ -370,12 +471,12 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   useEffect(() => {
     if (preserveSharedChallengeRef.current) return;
     let cancelled = false;
-    const fallback = selectLiveStudioChallenge(cadence, tier);
+    const fallback = selectLiveStudioChallenge(cadence, tier, scheduledDate);
     setRotatedChallenge(fallback);
     setChallengeId('');
     setGenerationState('curated');
     setGenerationMessage('Curated library target ready. Optional rotation checks run in the background.');
-    void resolveLiveStudioChallenge(cadence, tier).then(selection => {
+    void resolveLiveStudioChallenge(cadence, tier, scheduledDate).then(selection => {
       if (cancelled || startedRef.current) return;
       setRotatedChallenge(selection.challenge);
       setGenerationState(selection.source === 'generated' ? 'generated' : 'curated-fallback');
@@ -383,7 +484,7 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
       if (selection.source === 'curated-fallback') onAddNotice(selection.message ?? 'Generated target unavailable. Using the curated catalog.');
     });
     return () => { cancelled = true; };
-  }, [cadence, tier, onAddNotice]);
+  }, [cadence, dailyDay, scheduledDate, tier, onAddNotice]);
 
   useEffect(() => {
     if (!started) return;
@@ -473,6 +574,13 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
   const chooseCadence = (nextCadence: LiveStudioCadence) => {
     preserveSharedChallengeRef.current = false;
     setCadence(nextCadence);
+    setChallengeId('');
+    resetSession();
+  };
+  const chooseDailyDay = (nextDay: number) => {
+    if (nextDay < 1 || nextDay > 31 || nextDay === dailyDay) return;
+    preserveSharedChallengeRef.current = false;
+    setDailyDay(nextDay);
     setChallengeId('');
     resetSession();
   };
@@ -574,6 +682,7 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     curatedChallenges={curatedLiveStudioChallengeCatalog}
     cadence={cadence}
     tier={tier}
+    dailyDay={dailyDay}
     challengeId={activeChallenge.id}
     typedValue={finished ? activeChallenge.code : typed}
     safePreview={preview}
@@ -585,6 +694,7 @@ function LiveStudioPage({ totalPoints, initialBuild, onFinish, onAddNotice }: { 
     errorCount={errors}
     unlockedTiers={unlockedTiers}
     onCadenceChange={chooseCadence}
+    onDailyDayChange={chooseDailyDay}
     onTierChange={chooseTier}
     onChallengeChange={chooseChallenge}
     onLibrarySelect={chooseLibraryChallenge}
@@ -608,14 +718,23 @@ function RouterApp() {
     const saved = readStorage<string>('codesprint_theme', 'midnight');
     return Object.prototype.hasOwnProperty.call(themeTokens, saved) ? saved as ThemeName : 'midnight';
   });
+  const [motionPreference, setMotionPreference] = useState<MotionPreference>(() => {
+    const saved = readStorage<string>('codesprint_motion', 'auto');
+    return saved === 'on' || saved === 'off' || saved === 'auto' ? saved : 'auto';
+  });
   const [customSnippets, setCustomSnippets] = useState<Snippet[]>(() => readStorage<Snippet[]>('codesprint_custom_snippets', []));
   const [runs, setRuns] = useState<Run[]>(() => readStorage<Run[]>('codesprint_runs', []));
   const [liveBuilds, setLiveBuilds] = useState<LiveStudioBuild[]>(() => readStorage<LiveStudioBuild[]>('codesprint_live_builds', []));
   const [sharedLiveBuild] = useState<Partial<LiveStudioBuild> | null>(() => decodeLiveStudioShare(new URLSearchParams(window.location.search).get('share')));
+  const [systemReducedMotion, setSystemReducedMotion] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const [notice, setNotice] = useState('');
   const allSnippets = useMemo(() => [...seededSnippets, ...customSnippets], [customSnippets]);
   const totalPoints = runs.reduce((sum, run) => sum + run.points, 0) + liveBuilds.reduce((sum, build) => sum + build.points, 0);
   const credits = runs.reduce((sum, run) => sum + Math.max(3, Math.round(run.points / 18)), 0) + liveBuilds.reduce((sum, build) => sum + Math.max(3, Math.round(build.points / 18)), 0);
+  const selectedPalette = paletteCatalog.find(item => item.id === theme) ?? paletteCatalog[0];
+  const paletteUnlocked = totalPoints >= tierMeta[selectedPalette.tier].unlock;
+  const motionReduced = motionPreference === 'off' || (motionPreference === 'auto' && systemReducedMotion);
+  const animated = selectedPalette.animated && !motionReduced;
   useEffect(() => {
     window.localStorage.setItem('codesprint_theme', JSON.stringify(theme));
     const root = document.documentElement;
@@ -624,6 +743,24 @@ function RouterApp() {
       root.style.setProperty(property, value);
     }
   }, [theme]);
+  useEffect(() => {
+    if (!paletteUnlocked) {
+      const fallback = paletteCatalog.find(item => totalPoints >= tierMeta[item.tier].unlock);
+      if (fallback) setTheme(fallback.id);
+    }
+  }, [paletteUnlocked, theme, totalPoints]);
+  useEffect(() => {
+    window.localStorage.setItem('codesprint_motion', JSON.stringify(motionPreference));
+    document.documentElement.classList.toggle('motion-reduced', motionReduced);
+    return () => document.documentElement.classList.remove('motion-reduced');
+  }, [motionPreference, motionReduced]);
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onChange = (event: MediaQueryListEvent) => setSystemReducedMotion(event.matches);
+    query.addEventListener?.('change', onChange);
+    return () => query.removeEventListener?.('change', onChange);
+  }, []);
   useEffect(() => { window.localStorage.setItem('codesprint_custom_snippets', JSON.stringify(customSnippets)); }, [customSnippets]);
   useEffect(() => { window.localStorage.setItem('codesprint_runs', JSON.stringify(runs)); }, [runs]);
   useEffect(() => { window.localStorage.setItem('codesprint_live_builds', JSON.stringify(liveBuilds)); }, [liveBuilds]);
@@ -632,7 +769,7 @@ function RouterApp() {
   const finishLiveBuild = (build: LiveStudioBuild) => { setLiveBuilds(previous => [...previous, build]); setNotice(`Live result created. +${build.points} points added.`); };
   const addSnippet = (snippet: Snippet) => setCustomSnippets(previous => [...previous, snippet]);
   const deleteSnippet = (id: string) => { if (window.confirm('Delete this local snippet?')) setCustomSnippets(previous => previous.filter(item => item.id !== id)); };
-  return <AppShell theme={theme} totalPoints={totalPoints} credits={credits}><Switch><Route path="/">{() => <Practice snippets={allSnippets} runs={runs} totalPoints={totalPoints} onFinish={finish} onAddNotice={setNotice} />}</Route><Route path="/studio">{() => <LiveStudioPage totalPoints={totalPoints} initialBuild={sharedLiveBuild} onFinish={finishLiveBuild} onAddNotice={setNotice} />}</Route><Route path="/progress">{() => <Progress runs={runs} liveBuilds={liveBuilds} totalPoints={totalPoints} credits={credits} />}</Route><Route path="/snippets">{() => <Snippets snippets={allSnippets} onAdd={addSnippet} onDelete={deleteSnippet} onAddNotice={setNotice} />}</Route><Route path="/themes">{() => <Themes theme={theme} setTheme={setTheme} />}</Route><Route>{() => <NotFound />}</Route></Switch>{notice && <div className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card))] px-4 py-3 text-xs text-[hsl(var(--foreground))] shadow-2xl md:bottom-7" role="status" data-testid="status-notice"><Check size={15} className="text-[hsl(var(--primary))]" />{notice}</div>}</AppShell>;
+  return <AppShell theme={theme} totalPoints={totalPoints} credits={credits} animated={animated} motionReduced={motionReduced}><Switch><Route path="/">{() => <Practice snippets={allSnippets} runs={runs} totalPoints={totalPoints} onFinish={finish} onAddNotice={setNotice} />}</Route><Route path="/studio">{() => <LiveStudioPage totalPoints={totalPoints} initialBuild={sharedLiveBuild} onFinish={finishLiveBuild} onAddNotice={setNotice} />}</Route><Route path="/progress">{() => <Progress runs={runs} liveBuilds={liveBuilds} totalPoints={totalPoints} credits={credits} />}</Route><Route path="/snippets">{() => <Snippets snippets={allSnippets} onAdd={addSnippet} onDelete={deleteSnippet} onAddNotice={setNotice} />}</Route><Route path="/themes">{() => <Themes theme={theme} setTheme={setTheme} totalPoints={totalPoints} motionPreference={motionPreference} setMotionPreference={setMotionPreference} systemReducedMotion={systemReducedMotion} />}</Route><Route>{() => <NotFound />}</Route></Switch>{notice && <div className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card))] px-4 py-3 text-xs text-[hsl(var(--foreground))] shadow-2xl md:bottom-7" role="status" data-testid="status-notice"><Check size={15} className="text-[hsl(var(--primary))]" />{notice}</div>}</AppShell>;
 }
 
 export default function App() {
