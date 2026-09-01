@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { Link, Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
 import {
   Activity, ArrowRight, BarChart3, BookOpen, Check, CircleHelp,
@@ -135,6 +135,73 @@ export const paletteCatalog: PaletteDefinition[] = paletteSeeds.map(seed => {
   return { ...seed, animated: animation !== 'static', animation, tokens: createThemeTokens(seed) };
 });
 const themeTokens = Object.fromEntries(paletteCatalog.map(palette => [palette.id, palette.tokens])) as Record<ThemeName, ThemeTokens>;
+
+type PaletteMotif = 'terminal' | 'ember' | 'botanical' | 'wave' | 'circuit' | 'matrix' | 'crt' | 'prism' | 'grid' | 'toxic' | 'deep' | 'shrine' | 'vhs' | 'fungal' | 'solar-cult' | 'black-hole' | 'glitch';
+const paletteMotifs: Record<ThemeName, PaletteMotif> = {
+  midnight: 'terminal',
+  ember: 'ember',
+  mint: 'botanical',
+  oceanic: 'wave',
+  'circuit-bloom': 'circuit',
+  'matrix-rain': 'matrix',
+  'crt-afterglow': 'crt',
+  violet: 'prism',
+  cobalt: 'grid',
+  copper: 'ember',
+  sage: 'botanical',
+  'tidepool-signal': 'wave',
+  'toxic-garden': 'toxic',
+  'deep-sea-biolume': 'deep',
+  mono: 'grid',
+  solar: 'ember',
+  berry: 'prism',
+  lagoon: 'wave',
+  'neon-shrine': 'shrine',
+  'vhs-ghost': 'vhs',
+  ultraviolet: 'prism',
+  oxide: 'ember',
+  arctic: 'wave',
+  orchid: 'prism',
+  'fungal-network': 'fungal',
+  'solar-cult': 'solar-cult',
+  aurora: 'wave',
+  obsidian: 'grid',
+  prism: 'prism',
+  eclipse: 'black-hole',
+  'black-hole-karaoke': 'black-hole',
+  'glitch-cathedral': 'glitch',
+};
+const matrixGlyphs = ['01', 'ｱ7', '0X', 'ﾊ9', '11', '∆3', 'ﾐ0', '7A', '00', 'K4'];
+const deepBubbles = ['12%', '27%', '44%', '63%', '78%'];
+const fungalNodes = ['18%', '34%', '51%', '68%', '84%'];
+function paletteMotif(palette: PaletteDefinition) {
+  const motif = paletteMotifs[palette.id];
+  const style = {
+    '--motif-a': palette.colors[1],
+    '--motif-b': palette.colors[2],
+    '--motif-c': palette.colors[palette.colors.length > 3 ? 3 : 0],
+  } as CSSProperties;
+  return (
+    <div className={classNames('palette-motif', `palette-motif-${motif}`)} data-palette-motif={motif} style={style} aria-hidden="true">
+      {motif === 'matrix' && <div className="palette-matrix-columns">{matrixGlyphs.map((glyph, index) => <span key={glyph} style={{ '--matrix-delay': `${index * -0.42}s`, '--matrix-x': `${index * 10.5}%` } as CSSProperties}>{glyph}<b>{index % 2 ? 'ﾘ' : '0'}</b><i>{index % 3 ? 'A' : 'ﾈ'}</i></span>)}</div>}
+      {motif === 'crt' && <><div className="palette-crt-scanlines" /><div className="palette-crt-glow" /><span className="palette-motif-label">REC / PHOSPHOR</span></>}
+      {motif === 'vhs' && <><div className="palette-vhs-bars">{[0, 1, 2, 3].map(index => <span key={index} style={{ '--vhs-y': `${24 + index * 17}%` } as CSSProperties} />)}</div><div className="palette-vhs-tracking" /><span className="palette-motif-label">PLAY ▶ 1987</span></>}
+      {motif === 'toxic' && <><div className="palette-toxic-orb" /><div className="palette-toxic-vine palette-toxic-vine-a" /><div className="palette-toxic-vine palette-toxic-vine-b" /><span className="palette-motif-label">DO NOT WATER</span></>}
+      {motif === 'deep' && <div className="palette-deep-bubbles">{deepBubbles.map((left, index) => <span key={left} style={{ left, '--bubble-size': `${5 + index * 2}px`, '--bubble-delay': `${index * -1.4}s` } as CSSProperties} />)}</div>}
+      {motif === 'shrine' && <><div className="palette-shrine-gate"><i /><i /><b /></div><div className="palette-shrine-lanterns"><span /><span /><span /></div><span className="palette-motif-label">祈 / SIGNAL</span></>}
+      {motif === 'fungal' && <><div className="palette-fungal-network">{fungalNodes.map((left, index) => <span key={left} style={{ left, top: `${34 + (index % 2) * 18}%`, '--node-delay': `${index * -0.7}s` } as CSSProperties} />)}</div><div className="palette-fungal-cap" /><span className="palette-motif-label">MYCELIUM / 01</span></>}
+      {motif === 'solar-cult' && <><div className="palette-solar-rays" /><div className="palette-solar-disc" /><span className="palette-motif-label">WORSHIP THE LIGHT</span></>}
+      {motif === 'black-hole' && <><div className="palette-space-stars" /><div className="palette-black-hole-ring"><i /></div><span className="palette-motif-label">SING INTO VOID</span></>}
+      {motif === 'glitch' && <><div className="palette-glitch-arches"><i /><i /><i /></div><div className="palette-glitch-bars"><span /><span /><span /></div><span className="palette-motif-label">ERROR / HALLELUJAH</span></>}
+      {motif === 'circuit' && <><div className="palette-circuit-lines"><i /><i /><i /><b /><b /><b /></div><span className="palette-motif-label">NODE / BLOOM</span></>}
+      {motif === 'wave' && <><div className="palette-wave-rings"><i /><i /><i /></div><div className="palette-wave-line" /></>}
+      {motif === 'prism' && <><div className="palette-prism-shard" /><div className="palette-prism-spectrum" /></>}
+      {motif === 'grid' && <><div className="palette-grid-plane" /><div className="palette-grid-crosshair" /></>}
+      {motif === 'ember' && <><div className="palette-ember-sparks"><i /><i /><i /><i /></div><div className="palette-ember-core" /></>}
+      {motif === 'terminal' && <><div className="palette-terminal-grid" /><span className="palette-motif-label">READY_</span></>}
+      </div>
+  );
+}
 
 const tierMeta: Record<Tier, { tag: string; subtitle: string; color: string; points: number; unlock: number }> = {
   Small: { tag: '01', subtitle: 'Warm-up patterns', color: '#7ee7d8', points: 50, unlock: 0 },
@@ -407,10 +474,10 @@ function Themes({ theme, setTheme, totalPoints, motionPreference, setMotionPrefe
           const unlocked = isUnlocked(palette);
           const selected = theme === palette.id;
           return <button key={palette.id} type="button" disabled={!unlocked} aria-pressed={selected} aria-label={`${palette.name}, ${palette.tier} tier, level ${palette.level}${palette.animated ? ', animated' : ', static'}`} onClick={() => { if (unlocked) setTheme(palette.id); }} className={classNames('group relative overflow-hidden rounded-2xl border p-4 text-left transition-all', selected ? 'border-[hsl(var(--primary)/.75)] bg-[hsl(var(--primary)/.09)] shadow-[0_0_0_1px_hsl(var(--primary)/.14)]' : unlocked ? 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.3)]' : 'cursor-not-allowed border-[hsl(var(--border)/.5)] bg-[hsl(var(--background)/.2)] opacity-55')} data-testid={`button-theme-${palette.id}`} data-palette-id={palette.id} data-palette-animated={palette.animated ? 'true' : 'false'}>
-             <div className={classNames('palette-preview relative mb-4 overflow-hidden rounded-xl border border-white/10 p-3', palette.animated && 'palette-preview-animated', palette.animated && `palette-preview-${palette.animation}`)} data-palette-animation={palette.animation} style={{ background: `linear-gradient(135deg, ${palette.colors[0]}, ${palette.colors[0]} 45%, ${palette.colors[1]})` }}>
-              <div className="flex items-center gap-1.5 border-b border-white/15 pb-2"><span className="size-1.5 rounded-full bg-white/50" /><span className="size-1.5 rounded-full bg-white/35" /><span className="size-1.5 rounded-full bg-white/25" /><span className="ml-2 font-mono text-[8px] text-white/60">practice.ts</span></div>
-              <div className="mt-3 space-y-1 font-mono text-[9px]"><div className="text-white/45">01 <span style={{ color: palette.colors[1] }}>const</span> signal = <span style={{ color: palette.colors[2] }}>focus</span>();</div><div className="text-white/45">02 <span style={{ color: palette.colors[1] }}>await</span> signal.<span style={{ color: palette.colors[2] }}>repeat</span>();</div></div>
-              {palette.animated && <span className="absolute -right-8 -top-8 size-24 rounded-full border border-white/20" />}
+              <div className={classNames('palette-preview relative mb-4 overflow-hidden rounded-xl border border-white/10 p-3', palette.animated && 'palette-preview-animated', palette.animated && `palette-preview-${palette.animation}`)} data-palette-animation={palette.animation} data-palette-motif={paletteMotifs[palette.id]} style={{ background: `linear-gradient(135deg, ${palette.colors[0]}, ${palette.colors[0]} 45%, ${palette.colors[1]})` }}>
+               {paletteMotif(palette)}
+               <div className="relative z-10 flex items-center gap-1.5 border-b border-white/15 pb-2"><span className="size-1.5 rounded-full bg-white/50" /><span className="size-1.5 rounded-full bg-white/35" /><span className="size-1.5 rounded-full bg-white/25" /><span className="ml-2 font-mono text-[8px] text-white/60">{palette.name.toLowerCase().replaceAll(' ', '-')}.ts</span></div>
+               <div className="relative z-10 mt-3 space-y-1 font-mono text-[9px]"><div className="text-white/60">01 <span style={{ color: palette.colors[1] }}>const</span> signal = <span style={{ color: palette.colors[2] }}>focus</span>();</div><div className="text-white/60">02 <span style={{ color: palette.colors[1] }}>await</span> signal.<span style={{ color: palette.colors[2] }}>repeat</span>();</div></div>
             </div>
             <div className="flex items-start justify-between gap-3"><div><div className="font-semibold">{palette.name}</div><div className="mt-1 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(var(--muted-foreground))]"><span>{palette.tier}</span><span className="text-[hsl(var(--border))]">/</span><span>Level {palette.level}</span><span className="text-[hsl(var(--border))]">/</span><span>{palette.animated ? 'Animated' : 'Static'}</span></div></div>{selected ? <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]" aria-label="Selected palette"><Check size={14} /></span> : !unlocked ? <LockKeyhole size={15} className="shrink-0 text-[hsl(var(--muted-foreground))]" /> : null}</div>
             <p className="mt-3 text-xs leading-5 text-[hsl(var(--muted-foreground))]">{unlocked ? palette.description : `Unlocks at ${tierMeta[palette.tier].unlock} points.`}</p>
@@ -432,7 +499,10 @@ function Themes({ theme, setTheme, totalPoints, motionPreference, setMotionPrefe
       </div>
       <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] p-6">
         <div className="font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Preview / editor surface</div>
-        <div className="mt-5 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+         <div className="mt-5 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+           <div className={classNames('palette-editor-motif relative h-24 overflow-hidden border-b border-[hsl(var(--border))]', selectedPalette.animated && 'palette-preview-animated', selectedPalette.animated && `palette-preview-${selectedPalette.animation}`)} data-palette-motif={paletteMotifs[selectedPalette.id]}>
+             {paletteMotif(selectedPalette)}
+           </div>
           <div className="flex items-center gap-1 border-b border-[hsl(var(--border))] px-4 py-3"><span className="size-2 rounded-full bg-[hsl(var(--destructive)/.75)]" /><span className="size-2 rounded-full bg-[hsl(var(--accent)/.75)]" /><span className="size-2 rounded-full bg-[hsl(var(--primary)/.75)]" /><span className="ml-3 font-mono text-[10px] text-[hsl(var(--muted-foreground))]">{selectedPalette.name.toLowerCase().replaceAll(' ', '-')}.ts</span></div>
           <pre className="p-5 font-mono text-xs leading-7"><span className="text-[hsl(var(--muted-foreground))]">01 </span><span className="text-[hsl(var(--primary))]">const</span> <span className="text-[hsl(var(--accent))]">practice</span> = <span className="text-[hsl(var(--foreground)/.7)]">focus</span>();{'\n'}<span className="text-[hsl(var(--muted-foreground))]">02 </span><span className="text-[hsl(var(--primary))]">await</span> practice.<span className="text-[hsl(var(--accent))]">repeat</span>();<span className="blink ml-1 inline-block h-4 border-l-2 border-[hsl(var(--primary))] align-middle" /></pre>
         </div>
