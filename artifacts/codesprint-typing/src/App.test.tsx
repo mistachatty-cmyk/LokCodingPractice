@@ -134,22 +134,29 @@ describe('local library and workspace regressions', () => {
   });
 
   it('browses tiered static and animated palettes with locked tiers', () => {
-    expect(paletteCatalog).toHaveLength(20);
+    expect(paletteCatalog).toHaveLength(22);
     expect(new Set(paletteCatalog.map(palette => palette.tier))).toEqual(new Set(['Small', 'Medium', 'Hard', 'Advanced', 'Legendary']));
     expect(paletteCatalog.some(palette => palette.animated)).toBe(true);
     expect(paletteCatalog.some(palette => !palette.animated)).toBe(true);
-    expect(paletteCatalog.filter(palette => palette.animated)).toHaveLength(16);
+    expect(paletteCatalog.filter(palette => palette.animated)).toHaveLength(18);
     expect(new Set(paletteCatalog.filter(palette => palette.animated).map(palette => palette.animation))).toEqual(new Set(['drift', 'pulse', 'orbit']));
 
     render(<App />);
     navigate('link-nav-workspace');
 
-    expect(screen.getByTestId('text-palette-count').textContent).toContain('20 palettes');
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('22 palettes');
     expect((screen.getByTestId('button-palette-tier-hard') as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByTestId('button-theme-circuit-bloom') as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByTestId('button-theme-tidepool-signal') as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByTestId('button-theme-circuit-bloom'));
+    expect(document.querySelector('[data-palette-id]')?.getAttribute('data-palette-animation')).toBe('pulse');
+    expect(JSON.parse(window.localStorage.getItem('codesprint_theme') ?? 'null')).toBe('circuit-bloom');
+    fireEvent.click(screen.getByTestId('button-theme-tidepool-signal'));
+    expect(document.querySelector('[data-palette-id]')?.getAttribute('data-palette-animation')).toBe('orbit');
     fireEvent.click(screen.getByTestId('button-palette-filter-animated'));
-    expect(screen.getByTestId('text-palette-count').textContent).toContain('16 / 20');
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('18 / 22');
     fireEvent.click(screen.getByTestId('button-palette-level-2'));
-    expect(screen.getByTestId('text-palette-count').textContent).toContain('5 / 20');
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('5 / 22');
     expect(JSON.parse(window.localStorage.getItem('codesprint_palette_filter') ?? 'null')).toBe('Animated');
     expect(JSON.parse(window.localStorage.getItem('codesprint_palette_level') ?? 'null')).toBe(2);
   });
