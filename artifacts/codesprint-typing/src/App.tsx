@@ -27,12 +27,14 @@ type Snippet = { id: string; title: string; language: string; tier: Tier; descri
 type Run = { id: string; snippetTitle: string; tier: Tier; wpm: number; cpm: number; accuracy: number; seconds: number; points: number; date: string };
 export type ThemeName = 'midnight' | 'ember' | 'mint' | 'oceanic' | 'violet' | 'cobalt' | 'copper' | 'sage' | 'mono' | 'solar' | 'berry' | 'lagoon' | 'ultraviolet' | 'oxide' | 'arctic' | 'orchid' | 'aurora' | 'obsidian' | 'prism' | 'eclipse';
 type ThemeTokens = Record<string, string>;
+type PaletteAnimation = 'static' | 'drift' | 'pulse' | 'orbit';
 export type PaletteDefinition = {
   id: ThemeName;
   name: string;
   tier: Tier;
   level: number;
   animated: boolean;
+  animation: PaletteAnimation;
   description: string;
   colors: string[];
   tokens: ThemeTokens;
@@ -40,7 +42,7 @@ export type PaletteDefinition = {
 type PaletteTierFilter = Tier | 'All';
 type PaletteVariantFilter = 'All' | 'Static' | 'Animated';
 type MotionPreference = 'auto' | 'on' | 'off';
-type PaletteSeed = Omit<PaletteDefinition, 'tokens' | 'animated'> & {
+type PaletteSeed = Omit<PaletteDefinition, 'tokens' | 'animated' | 'animation'> & {
   background: string;
   foreground: string;
   primary: string;
@@ -107,7 +109,19 @@ function createThemeTokens(seed: PaletteSeed): ThemeTokens {
   };
 }
 
-export const paletteCatalog: PaletteDefinition[] = paletteSeeds.map(seed => ({ ...seed, animated: seed.level % 2 === 0, tokens: createThemeTokens(seed) }));
+const pulsePalettes = new Set<ThemeName>(['ember', 'solar', 'oxide', 'prism']);
+const orbitPalettes = new Set<ThemeName>(['oceanic', 'lagoon', 'arctic', 'aurora']);
+const animatedPalettes = new Set<ThemeName>(paletteSeeds.filter(seed => seed.level >= 2 || seed.id === 'midnight').map(seed => seed.id));
+function getPaletteAnimation(id: ThemeName): PaletteAnimation {
+  if (!animatedPalettes.has(id)) return 'static';
+  if (pulsePalettes.has(id)) return 'pulse';
+  if (orbitPalettes.has(id)) return 'orbit';
+  return 'drift';
+}
+export const paletteCatalog: PaletteDefinition[] = paletteSeeds.map(seed => {
+  const animation = getPaletteAnimation(seed.id);
+  return { ...seed, animated: animation !== 'static', animation, tokens: createThemeTokens(seed) };
+});
 const themeTokens = Object.fromEntries(paletteCatalog.map(palette => [palette.id, palette.tokens])) as Record<ThemeName, ThemeTokens>;
 
 const tierMeta: Record<Tier, { tag: string; subtitle: string; color: string; points: number; unlock: number }> = {
@@ -148,12 +162,12 @@ function formatTime(seconds: number) {
 }
 function classNames(...classes: Array<string | false | undefined>) { return classes.filter(Boolean).join(' '); }
 
-function AppShell({ children, theme, totalPoints, credits, animated, motionReduced }: { children: ReactNode; theme: ThemeName; totalPoints: number; credits: number; animated: boolean; motionReduced: boolean }) {
+function AppShell({ children, theme, totalPoints, credits, animated, animation, motionReduced }: { children: ReactNode; theme: ThemeName; totalPoints: number; credits: number; animated: boolean; animation: PaletteAnimation; motionReduced: boolean }) {
   const [location] = useLocation();
   const [mobileMenu, setMobileMenu] = useState(false);
   const palette = paletteCatalog.find(item => item.id === theme);
   return (
-    <div className={classNames('min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]', animated && 'palette-animated', motionReduced && 'motion-reduced')} data-palette-id={theme}>
+    <div className={classNames('min-h-[100dvh] bg-[hsl(var(--background))] text-[hsl(var(--foreground))]', animated && 'palette-animated', motionReduced && 'motion-reduced')} data-palette-id={theme} data-palette-animation={animation}>
       <div className="noise" />
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[248px] border-r border-[hsl(var(--border))] bg-[hsl(var(--background)/.88)] px-5 py-6 backdrop-blur-xl md:flex md:flex-col">
         <Brand />
@@ -380,7 +394,7 @@ function Themes({ theme, setTheme, totalPoints, motionPreference, setMotionPrefe
           const unlocked = isUnlocked(palette);
           const selected = theme === palette.id;
           return <button key={palette.id} type="button" disabled={!unlocked} aria-pressed={selected} aria-label={`${palette.name}, ${palette.tier} tier, level ${palette.level}${palette.animated ? ', animated' : ', static'}`} onClick={() => { if (unlocked) setTheme(palette.id); }} className={classNames('group relative overflow-hidden rounded-2xl border p-4 text-left transition-all', selected ? 'border-[hsl(var(--primary)/.75)] bg-[hsl(var(--primary)/.09)] shadow-[0_0_0_1px_hsl(var(--primary)/.14)]' : unlocked ? 'border-[hsl(var(--border))] bg-[hsl(var(--background)/.3)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.3)]' : 'cursor-not-allowed border-[hsl(var(--border)/.5)] bg-[hsl(var(--background)/.2)] opacity-55')} data-testid={`button-theme-${palette.id}`} data-palette-id={palette.id} data-palette-animated={palette.animated ? 'true' : 'false'}>
-            <div className={classNames('palette-preview relative mb-4 overflow-hidden rounded-xl border border-white/10 p-3', palette.animated && 'palette-preview-animated')} style={{ background: `linear-gradient(135deg, ${palette.colors[0]}, ${palette.colors[0]} 45%, ${palette.colors[1]})` }}>
+             <div className={classNames('palette-preview relative mb-4 overflow-hidden rounded-xl border border-white/10 p-3', palette.animated && 'palette-preview-animated', palette.animated && `palette-preview-${palette.animation}`)} data-palette-animation={palette.animation} style={{ background: `linear-gradient(135deg, ${palette.colors[0]}, ${palette.colors[0]} 45%, ${palette.colors[1]})` }}>
               <div className="flex items-center gap-1.5 border-b border-white/15 pb-2"><span className="size-1.5 rounded-full bg-white/50" /><span className="size-1.5 rounded-full bg-white/35" /><span className="size-1.5 rounded-full bg-white/25" /><span className="ml-2 font-mono text-[8px] text-white/60">practice.ts</span></div>
               <div className="mt-3 space-y-1 font-mono text-[9px]"><div className="text-white/45">01 <span style={{ color: palette.colors[1] }}>const</span> signal = <span style={{ color: palette.colors[2] }}>focus</span>();</div><div className="text-white/45">02 <span style={{ color: palette.colors[1] }}>await</span> signal.<span style={{ color: palette.colors[2] }}>repeat</span>();</div></div>
               {palette.animated && <span className="absolute -right-8 -top-8 size-24 rounded-full border border-white/20" />}
@@ -769,7 +783,7 @@ function RouterApp() {
   const finishLiveBuild = (build: LiveStudioBuild) => { setLiveBuilds(previous => [...previous, build]); setNotice(`Live result created. +${build.points} points added.`); };
   const addSnippet = (snippet: Snippet) => setCustomSnippets(previous => [...previous, snippet]);
   const deleteSnippet = (id: string) => { if (window.confirm('Delete this local snippet?')) setCustomSnippets(previous => previous.filter(item => item.id !== id)); };
-  return <AppShell theme={theme} totalPoints={totalPoints} credits={credits} animated={animated} motionReduced={motionReduced}><Switch><Route path="/">{() => <Practice snippets={allSnippets} runs={runs} totalPoints={totalPoints} onFinish={finish} onAddNotice={setNotice} />}</Route><Route path="/studio">{() => <LiveStudioPage totalPoints={totalPoints} initialBuild={sharedLiveBuild} onFinish={finishLiveBuild} onAddNotice={setNotice} />}</Route><Route path="/progress">{() => <Progress runs={runs} liveBuilds={liveBuilds} totalPoints={totalPoints} credits={credits} />}</Route><Route path="/snippets">{() => <Snippets snippets={allSnippets} onAdd={addSnippet} onDelete={deleteSnippet} onAddNotice={setNotice} />}</Route><Route path="/themes">{() => <Themes theme={theme} setTheme={setTheme} totalPoints={totalPoints} motionPreference={motionPreference} setMotionPreference={setMotionPreference} systemReducedMotion={systemReducedMotion} />}</Route><Route>{() => <NotFound />}</Route></Switch>{notice && <div className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card))] px-4 py-3 text-xs text-[hsl(var(--foreground))] shadow-2xl md:bottom-7" role="status" data-testid="status-notice"><Check size={15} className="text-[hsl(var(--primary))]" />{notice}</div>}</AppShell>;
+  return <AppShell theme={theme} totalPoints={totalPoints} credits={credits} animated={animated} animation={selectedPalette.animation} motionReduced={motionReduced}><Switch><Route path="/">{() => <Practice snippets={allSnippets} runs={runs} totalPoints={totalPoints} onFinish={finish} onAddNotice={setNotice} />}</Route><Route path="/studio">{() => <LiveStudioPage totalPoints={totalPoints} initialBuild={sharedLiveBuild} onFinish={finishLiveBuild} onAddNotice={setNotice} />}</Route><Route path="/progress">{() => <Progress runs={runs} liveBuilds={liveBuilds} totalPoints={totalPoints} credits={credits} />}</Route><Route path="/snippets">{() => <Snippets snippets={allSnippets} onAdd={addSnippet} onDelete={deleteSnippet} onAddNotice={setNotice} />}</Route><Route path="/themes">{() => <Themes theme={theme} setTheme={setTheme} totalPoints={totalPoints} motionPreference={motionPreference} setMotionPreference={setMotionPreference} systemReducedMotion={systemReducedMotion} />}</Route><Route>{() => <NotFound />}</Route></Switch>{notice && <div className="fixed bottom-20 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--card))] px-4 py-3 text-xs text-[hsl(var(--foreground))] shadow-2xl md:bottom-7" role="status" data-testid="status-notice"><Check size={15} className="text-[hsl(var(--primary))]" />{notice}</div>}</AppShell>;
 }
 
 export default function App() {

@@ -75,7 +75,7 @@ Live build points and credits contribute to the existing progress totals and tie
 
 Workspace palettes are a local catalog of 20 deterministic definitions: four levels inside each of the five practice tiers. Small and Medium are available immediately; Hard, Advanced, and Legendary unlock at the same point thresholds used by practice and Live Studio. The browser supports tier, level, and Static/Animated filters and preserves those selections in local storage.
 
-Animated palette variants move only low-amplitude background gradients and preview surfaces. Code text, caret, layout, and projection content do not animate. Motion defaults to the browser's `prefers-reduced-motion` setting and can be explicitly enabled or disabled in Workspace. The legacy `midnight`, `ember`, and `mint` IDs remain valid in `codesprint_theme`.
+Sixteen of the 20 palette definitions offer animated variants, using low-amplitude drift, pulse, or orbit motion across background gradients and preview surfaces. Four palettes remain intentionally static for a quieter option. Code text, caret, layout, and projection content do not animate. Motion defaults to the browser's `prefers-reduced-motion` setting and can be explicitly enabled or disabled in Workspace. The legacy `midnight`, `ember`, and `mint` IDs remain valid in `codesprint_theme`.
 
 ## Sharing
 

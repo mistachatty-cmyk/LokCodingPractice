@@ -137,17 +137,47 @@ button { cursor: pointer; }
   background-size: 125% 125%;
   animation: palette-drift 18s ease-in-out infinite alternate;
 }
+.palette-animated[data-palette-animation="pulse"] {
+  animation: palette-pulse 8s ease-in-out infinite alternate;
+}
+.palette-animated[data-palette-animation="orbit"] {
+  animation: palette-orbit 22s linear infinite;
+}
 .palette-preview-animated {
   background-size: 160% 160%;
   animation: palette-preview-drift 9s ease-in-out infinite alternate;
+}
+.palette-preview-pulse {
+  animation: palette-preview-pulse 5s ease-in-out infinite alternate;
+}
+.palette-preview-orbit {
+  animation: palette-preview-orbit 13s linear infinite;
 }
 @keyframes palette-drift {
   from { background-position: 0% 0%; }
   to { background-position: 100% 80%; }
 }
+@keyframes palette-pulse {
+  from { background-size: 110% 110%; background-position: 0% 0%; }
+  to { background-size: 145% 145%; background-position: 75% 55%; }
+}
+@keyframes palette-orbit {
+  from { background-position: 0% 0%; }
+  50% { background-position: 100% 35%; }
+  to { background-position: 20% 100%; }
+}
 @keyframes palette-preview-drift {
   from { background-position: 0% 20%; }
   to { background-position: 100% 80%; }
+}
+@keyframes palette-preview-pulse {
+  from { background-size: 135% 135%; background-position: 0% 20%; }
+  to { background-size: 185% 185%; background-position: 75% 65%; }
+}
+@keyframes palette-preview-orbit {
+  from { background-position: 0% 20%; }
+  50% { background-position: 100% 35%; }
+  to { background-position: 15% 90%; }
 }
 .motion-reduced *,
 .motion-reduced *::before,

@@ -138,6 +138,8 @@ describe('local library and workspace regressions', () => {
     expect(new Set(paletteCatalog.map(palette => palette.tier))).toEqual(new Set(['Small', 'Medium', 'Hard', 'Advanced', 'Legendary']));
     expect(paletteCatalog.some(palette => palette.animated)).toBe(true);
     expect(paletteCatalog.some(palette => !palette.animated)).toBe(true);
+    expect(paletteCatalog.filter(palette => palette.animated)).toHaveLength(16);
+    expect(new Set(paletteCatalog.filter(palette => palette.animated).map(palette => palette.animation))).toEqual(new Set(['drift', 'pulse', 'orbit']));
 
     render(<App />);
     navigate('link-nav-workspace');
@@ -145,7 +147,7 @@ describe('local library and workspace regressions', () => {
     expect(screen.getByTestId('text-palette-count').textContent).toContain('20 palettes');
     expect((screen.getByTestId('button-palette-tier-hard') as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByTestId('button-palette-filter-animated'));
-    expect(screen.getByTestId('text-palette-count').textContent).toContain('10 / 20');
+    expect(screen.getByTestId('text-palette-count').textContent).toContain('16 / 20');
     fireEvent.click(screen.getByTestId('button-palette-level-2'));
     expect(screen.getByTestId('text-palette-count').textContent).toContain('5 / 20');
     expect(JSON.parse(window.localStorage.getItem('codesprint_palette_filter') ?? 'null')).toBe('Animated');
