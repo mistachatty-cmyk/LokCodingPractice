@@ -1,6 +1,6 @@
 kind = "web"
 previewPath = "/"
-title = "CodeSprint Typing Trainer"
+title = "Lokcodingpractice"
 description = "A responsive coding typing practice app with real code snippets across five difficulty tiers, live speed and accuracy scoring, unlockable themes, and locally saved custom snippets."
 version = "1.0.0"
 id = "artifacts/codesprint-typing"
