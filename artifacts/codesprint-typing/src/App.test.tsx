@@ -5,6 +5,7 @@ import App from './App';
 import { paletteCatalog } from './App';
 import { accuracyBucket, trackEvent } from './lib/analytics';
 import { curatedLiveStudioChallengeCatalog, getLiveStudioPeriodKey, projectLiveStudioPreview, resolveLiveStudioChallenge, selectLiveStudioChallenge } from './liveStudioData';
+import { recommendPractice } from './lib/recommendations';
 
 const localSnippet = {
   id: 'custom-regression-drill',
@@ -88,6 +89,54 @@ describe('typing drill regressions', () => {
     expect(screen.getByTestId('button-start-run')).toBeTruthy();
     expect(screen.queryByTestId('input-code-capture')).toBeNull();
     expect(JSON.parse(window.localStorage.getItem('codesprint_runs') ?? '[]')).toEqual([]);
+  });
+
+  it('orients a first-time learner and remembers the choice locally', () => {
+    render(<App />);
+
+    expect(screen.getByTestId('panel-first-visit')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('button-onboarding-start'));
+
+    expect(screen.queryByTestId('panel-first-visit')).toBeNull();
+    expect(screen.getByTestId('input-code-capture')).toBeTruthy();
+    expect(JSON.parse(window.localStorage.getItem('codesprint_onboarding_seen') ?? 'false')).toBe(true);
+  });
+});
+
+describe('local recommendation engine', () => {
+  const tierMeta = {
+    Small: { points: 50, unlock: 0 },
+    Medium: { points: 90, unlock: 0 },
+    Hard: { points: 150, unlock: 100 },
+    Advanced: { points: 230, unlock: 500 },
+    Legendary: { points: 400, unlock: 1200 },
+  } as const;
+  const snippets = [
+    { id: 'small-a', title: 'Small A', language: 'JavaScript', tier: 'Small' as const, description: 'A', code: 'abc' },
+    { id: 'small-b', title: 'Small B', language: 'Python', tier: 'Small' as const, description: 'B', code: 'abcdef' },
+    { id: 'medium-a', title: 'Medium A', language: 'SQL', tier: 'Medium' as const, description: 'C', code: 'select 1;' },
+  ];
+
+  it('returns the shortest deterministic starter when history is empty', () => {
+    const recommendation = recommendPractice({ snippets, runs: [], totalPoints: 0, tierMeta });
+
+    expect(recommendation).toMatchObject({
+      snippet: { id: 'small-a' },
+      reasonKey: 'starter',
+      rewardPoints: 50,
+    });
+  });
+
+  it('prioritizes accuracy recovery before exploration', () => {
+    const recommendation = recommendPractice({
+      snippets,
+      runs: [{ snippetTitle: 'Small A', tier: 'Small', accuracy: 82, date: '2026-09-01T12:00:00.000Z' }],
+      totalPoints: 0,
+      tierMeta,
+    });
+
+    expect(recommendation?.reasonKey).toBe('strengthen_accuracy');
+    expect(recommendation?.snippet.tier).toBe('Small');
   });
 });
 

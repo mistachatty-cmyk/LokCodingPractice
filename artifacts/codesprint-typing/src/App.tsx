@@ -21,6 +21,7 @@ import {
   type LiveStudioBuild,
 } from './liveStudioData';
 import { accuracyBucket, trackEvent } from './lib/analytics';
+import { recommendPractice, type PracticeRecommendation } from './lib/recommendations';
 
 type Tier = 'Small' | 'Medium' | 'Hard' | 'Advanced' | 'Legendary';
 type Snippet = { id: string; title: string; language: string; tier: Tier; description: string; code: string; custom?: boolean };
@@ -236,6 +237,14 @@ function readStorage<T>(key: string, fallback: T): T {
     return value ? JSON.parse(value) as T : fallback;
   } catch { return fallback; }
 }
+function writeStorage<T>(key: string, value: T) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
 function formatTime(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
 }
@@ -317,6 +326,26 @@ function Practice({ snippets, runs, totalPoints, onFinish, onAddNotice }: { snip
   const unlocked = (candidate: Tier) => totalPoints >= tierMeta[candidate].unlock;
   const tierSnippets = useMemo(() => snippets.filter(item => item.tier === tier), [snippets, tier]);
   const selectedSnippet = tierSnippets.find(item => item.id === selectedSnippetId) ?? tierSnippets[0];
+  const recommendation = useMemo(() => recommendPractice({ snippets, runs, totalPoints, tierMeta }), [snippets, runs, totalPoints]);
+  const [recommendationDismissed, setRecommendationDismissed] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => !readStorage<boolean>('codesprint_onboarding_seen', false));
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [storageWarning, setStorageWarning] = useState(false);
+
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (showWelcome) trackEvent('practice_onboarding_viewed', { has_history: runs.length > 0 });
+  }, [showWelcome, runs.length]);
 
   useEffect(() => {
     if (!started) return;
@@ -328,8 +357,27 @@ function Practice({ snippets, runs, totalPoints, onFinish, onAddNotice }: { snip
 
   const begin = (snippet = selectedSnippet) => {
     if (!snippet) { onAddNotice('Add a snippet to this tier before starting.'); return; }
+    if (showWelcome) {
+      setShowWelcome(false);
+      if (!writeStorage('codesprint_onboarding_seen', true)) setStorageWarning(true);
+      trackEvent('practice_onboarding_started', { tier: snippet.tier, language: snippet.language });
+    }
     setActiveSnippet(snippet); setTyped(''); setErrors(0); setElapsed(0); setFinished(null); setStarted(true); startedAt.current = Date.now();
     window.setTimeout(() => inputRef.current?.focus(), 60);
+  };
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    if (!writeStorage('codesprint_onboarding_seen', true)) setStorageWarning(true);
+    trackEvent('practice_onboarding_dismissed', { has_history: runs.length > 0 });
+  };
+  const beginRecommendation = () => {
+    if (!recommendation) return;
+    trackEvent('practice_recommendation_accepted', { reason: recommendation.reasonKey, tier: recommendation.snippet.tier, language: recommendation.snippet.language });
+    begin(recommendation.snippet);
+  };
+  const dismissRecommendation = () => {
+    setRecommendationDismissed(true);
+    if (recommendation) trackEvent('practice_recommendation_dismissed', { reason: recommendation.reasonKey });
   };
   useEffect(() => {
     const onShortcut = (event: globalThis.KeyboardEvent) => {
@@ -366,7 +414,10 @@ function Practice({ snippets, runs, totalPoints, onFinish, onAddNotice }: { snip
     if (next.length >= activeSnippet.code.length) complete(next, errors + (char !== activeSnippet.code[position] ? 1 : 0));
   };
 
-  if (finished) return <FinishState run={finished} onAgain={() => begin(activeSnippet ?? tierSnippets[0])} onExit={reset} />;
+  if (finished) {
+    const nextRecommendation = recommendPractice({ snippets, runs: [...runs, finished], totalPoints: totalPoints + finished.points, tierMeta });
+    return <FinishState run={finished} recommendation={nextRecommendation} onRecommended={() => nextRecommendation && begin(nextRecommendation.snippet)} onAgain={() => begin(activeSnippet ?? tierSnippets[0])} onExit={reset} />;
+  }
   if (started && activeSnippet) return <div className="rise">
     <div className="mb-7 flex flex-wrap items-center justify-between gap-4"><div><div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--primary))]"><span className="size-1.5 rounded-full bg-[hsl(var(--primary))] blink" /> LIVE RUN <span className="text-[hsl(var(--muted-foreground))]">/ {activeSnippet.language}</span></div><h1 className="mt-2 text-2xl font-bold tracking-tight">{activeSnippet.title}</h1></div><button onClick={reset} className="flex items-center gap-2 rounded-lg border border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-abandon-run"><X size={14} /> End run</button></div>
     <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4"><Metric icon={Gauge} label="WPM" value={elapsed ? Math.round(((typed.length - errors) / 5) / (elapsed / 60)).toString() : '0'} detail="words / minute" /><Metric icon={Activity} label="CPM" value={elapsed ? Math.round((typed.length - errors) / (elapsed / 60)).toString() : '0'} detail="characters / minute" accent="accent" /><Metric icon={Target} label="Accuracy" value={`${typed.length ? Math.round(((typed.length - errors) / typed.length) * 100) : 100}%`} detail={`${errors} corrections`} accent={errors ? 'destructive' : 'primary'} /><Metric icon={Clock3} label="Time" value={formatTime(elapsed)} detail="keep your rhythm" /></div>
@@ -376,18 +427,25 @@ function Practice({ snippets, runs, totalPoints, onFinish, onAddNotice }: { snip
 
   return <div className="rise">
     <PageIntro eyebrow="Daily practice / 01" title={bestRun ? 'Keep the signal clean.' : 'Build your typing muscle.'} description="A short, intentional run through the syntax you use every day. No words per minute theater — just better instincts at the keyboard." action={<div className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.55)] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]"><Flame size={16} className="text-[hsl(var(--accent))]" /><span><strong className="text-[hsl(var(--foreground))]">{runs.length ? `${Math.min(runs.length + 2, 7)} day` : 'Start a'} streak</strong> <span className="hidden sm:inline">— show up, sharpen up</span></span></div>} />
+    {showWelcome && <section className="mb-8 overflow-hidden rounded-2xl border border-[hsl(var(--primary)/.35)] bg-[linear-gradient(120deg,hsl(var(--primary)/.12),hsl(var(--card)/.72)_58%,hsl(var(--accent)/.08))] p-5 md:p-7" data-testid="panel-first-visit">
+      <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+        <div className="max-w-2xl"><div className="mb-2 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[.2em] text-[hsl(var(--primary))]"><span className="size-1.5 rounded-full bg-[hsl(var(--primary))]" /> FIRST RUN / NO SETUP</div><h2 className="text-2xl font-bold tracking-tight">Start with one short win.</h2><p className="mt-2 max-w-xl text-sm leading-6 text-[hsl(var(--muted-foreground))]">Pick up a small code pattern, type it exactly, and earn your first points. No account required — your practice stays in this browser.</p><div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-[hsl(var(--muted-foreground))]"><span><strong className="text-[hsl(var(--foreground))]">~30 sec</strong> to start</span><span><strong className="text-[hsl(var(--foreground))]">+{recommendation?.rewardPoints ?? tierMeta.Small.points}</strong> points preview</span><span><strong className="text-[hsl(var(--foreground))]">Safe</strong> visual feedback</span></div></div>
+        <div className="flex shrink-0 flex-wrap items-center gap-3"><button onClick={() => begin(recommendation?.snippet ?? selectedSnippet)} disabled={!recommendation && !selectedSnippet} className="flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-bold text-[hsl(var(--primary-foreground))]" data-testid="button-onboarding-start"><Play size={16} fill="currentColor" /> Start the short run <ArrowRight size={15} /></button><button onClick={dismissWelcome} className="rounded-xl border border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-onboarding-skip">Choose my own</button></div>
+      </div>
+    </section>}
     <div className="mb-8 flex items-center gap-3 text-xs text-[hsl(var(--muted-foreground))]"><span className="font-mono text-[hsl(var(--primary))]">SELECT TIER</span><div className="h-px w-10 bg-[hsl(var(--border))]" /><span>Choose the pressure that feels useful today.</span></div>
     <div className="grid gap-3 md:grid-cols-5">{(Object.keys(tierMeta) as Tier[]).map((candidate, index) => { const meta = tierMeta[candidate]; const isUnlocked = unlocked(candidate); return <button key={candidate} disabled={!isUnlocked} onClick={() => setTier(candidate)} className={classNames('group relative overflow-hidden rounded-xl border p-4 text-left transition-all', tier === candidate ? 'border-[hsl(var(--primary)/.7)] bg-[hsl(var(--primary)/.1)]' : isUnlocked ? 'border-[hsl(var(--border))] bg-[hsl(var(--card)/.5)] hover:-translate-y-0.5 hover:border-[hsl(var(--foreground)/.3)]' : 'cursor-not-allowed border-[hsl(var(--border)/.55)] bg-[hsl(var(--card)/.25)] opacity-55')} data-testid={`button-tier-${candidate.toLowerCase()}`}><div className="mb-7 flex items-center justify-between"><span className="font-mono text-[10px]" style={{ color: isUnlocked ? meta.color : undefined }}>{meta.tag}</span>{isUnlocked ? <span className="size-1.5 rounded-full" style={{ backgroundColor: meta.color }} /> : <LockKeyhole size={14} />}</div><div className="font-semibold">{candidate}</div><div className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">{isUnlocked ? meta.subtitle : `Earn ${meta.unlock} pts`}</div>{tier === candidate && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-[hsl(var(--primary))]" />}</button>; })}</div>
     <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_.75fr]">
-      <div className="glass-line panel-glow rounded-2xl border p-6 md:p-8"><div className="flex items-start justify-between gap-5"><div><div className="mb-2 font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Next up / {tier}</div><h2 className="text-2xl font-bold tracking-tight">{selectedSnippet?.title ?? 'No snippets yet'}</h2><p className="mt-2 max-w-md text-sm leading-6 text-[hsl(var(--muted-foreground))]">{selectedSnippet?.description ?? 'Add a custom snippet in your library to make this tier yours.'}</p></div><div className="hidden rounded-lg border border-[hsl(var(--border))] px-2 py-1 font-mono text-[10px] text-[hsl(var(--muted-foreground))] sm:block">{selectedSnippet?.language ?? 'CUSTOM'}</div></div>{tierSnippets.length > 1 && <label className="mt-6 block max-w-sm text-[10px] font-bold uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Choose a drill<select value={selectedSnippet?.id ?? ''} onChange={event => setSelectedSnippetId(event.target.value)} className="mt-2 w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.7)] px-3 py-2.5 text-xs font-normal normal-case tracking-normal text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary))]" data-testid="select-practice-snippet">{tierSnippets.map(item => <option key={item.id} value={item.id}>{item.title}{item.custom ? ' · local' : ''}</option>)}</select></label>}<div className="mt-8 flex flex-wrap items-center gap-3"><button onClick={() => begin()} className="flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-bold text-[hsl(var(--primary-foreground))] transition-transform hover:-translate-y-0.5" data-testid="button-start-run"><Play size={16} fill="currentColor" /> Start a run <span className="ml-2 border-l border-[hsl(var(--primary-foreground)/.25)] pl-3 font-mono text-xs">{tierMeta[tier].points} pts</span></button><Link href="/snippets" className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="link-browse-snippets">Browse library <ArrowRight size={15} /></Link></div></div>
+      <div className="glass-line panel-glow rounded-2xl border p-6 md:p-8"><div className="flex items-start justify-between gap-5"><div><div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--primary))]"><Sparkles size={13} /> {recommendation && !recommendationDismissed ? 'Recommended next' : `Next up / ${tier}`}</div><h2 className="text-2xl font-bold tracking-tight">{recommendation && !recommendationDismissed ? recommendation.snippet.title : selectedSnippet?.title ?? 'No snippets yet'}</h2><p className="mt-2 max-w-md text-sm leading-6 text-[hsl(var(--muted-foreground))]">{recommendation && !recommendationDismissed ? recommendation.snippet.description : selectedSnippet?.description ?? 'Add a custom snippet in your library to make this tier yours.'}</p></div><div className="hidden rounded-lg border border-[hsl(var(--border))] px-2 py-1 font-mono text-[10px] text-[hsl(var(--muted-foreground))] sm:block">{recommendation && !recommendationDismissed ? recommendation.snippet.language : selectedSnippet?.language ?? 'CUSTOM'}</div></div>{recommendation && !recommendationDismissed && <div className="mt-6 grid gap-3 sm:grid-cols-3"><div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.35)] p-3"><div className="font-mono text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Why this</div><div className="mt-1 text-xs leading-5">{recommendation.reason}</div></div><div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.35)] p-3"><div className="font-mono text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Objective</div><div className="mt-1 text-xs leading-5">{recommendation.objective}</div></div><div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.35)] p-3"><div className="font-mono text-[9px] uppercase tracking-[.14em] text-[hsl(var(--muted-foreground))]">Estimate / reward</div><div className="mt-1 font-mono text-xs">~{recommendation.estimateSeconds}s <span className="mx-1 text-[hsl(var(--border))]">/</span> +{recommendation.rewardPoints} pts</div></div></div>}{tierSnippets.length > 1 && <label className="mt-6 block max-w-sm text-[10px] font-bold uppercase tracking-[.16em] text-[hsl(var(--muted-foreground))]">Choose a drill<select value={selectedSnippet?.id ?? ''} onChange={event => setSelectedSnippetId(event.target.value)} className="mt-2 w-full rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--background)/.7)] px-3 py-2.5 text-xs font-normal normal-case tracking-normal text-[hsl(var(--foreground))] outline-none focus:border-[hsl(var(--primary))]" data-testid="select-practice-snippet">{tierSnippets.map(item => <option key={item.id} value={item.id}>{item.title}{item.custom ? ' · local' : ''}</option>)}</select></label>}<div className="mt-8 flex flex-wrap items-center gap-3"><button onClick={recommendation && !recommendationDismissed ? beginRecommendation : () => begin()} className="flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-bold text-[hsl(var(--primary-foreground))] transition-transform hover:-translate-y-0.5" data-testid="button-start-run"><Play size={16} fill="currentColor" /> {recommendation && !recommendationDismissed ? 'Start recommended run' : 'Start a run'} <span className="ml-2 border-l border-[hsl(var(--primary-foreground)/.25)] pl-3 font-mono text-xs">+{recommendation && !recommendationDismissed ? recommendation.rewardPoints : tierMeta[tier].points} pts</span></button><Link href="/snippets" className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="link-browse-snippets">Choose from library <ArrowRight size={15} /></Link>{recommendation && !recommendationDismissed && <button onClick={dismissRecommendation} className="text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-dismiss-recommendation">Not now</button>}</div></div>
       <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.45)] p-6"><div className="flex items-center justify-between"><div className="font-mono text-[10px] uppercase tracking-[.18em] text-[hsl(var(--muted-foreground))]">Run note</div><Sparkles size={16} className="text-[hsl(var(--accent))]" /></div><p className="mt-8 text-xl leading-8 tracking-tight text-[hsl(var(--foreground)/.85)]">“Fluency is not speed. It is the moment syntax stops being a decision.”</p><div className="mt-8 flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><span className="size-1.5 rounded-full bg-[hsl(var(--accent))]" /> {bestRun ? `Personal best: ${bestRun} WPM` : 'Your first best is waiting'}</div></div>
     </div>
-    <div className="mt-10 border-t border-[hsl(var(--border))] pt-5 text-xs text-[hsl(var(--muted-foreground))]"><span className="font-mono text-[hsl(var(--primary))]">SPACE</span> starts the selected run <span className="mx-3 text-[hsl(var(--border))]">/</span> Your progress stays in this browser</div>
+    <div className="mt-8 grid gap-3 border-t border-[hsl(var(--border))] pt-5 text-xs text-[hsl(var(--muted-foreground))] md:grid-cols-[1fr_auto] md:items-center"><div><span className="font-mono text-[hsl(var(--primary))]">SPACE</span> starts the recommended run <span className="mx-3 text-[hsl(var(--border))]">/</span> {isOnline ? 'Local-first mode is ready.' : 'Offline mode is active; local practice still works.'}</div><div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card)/.4)] px-3 py-2 text-[11px]"><strong className="text-[hsl(var(--foreground))]">Saved here</strong> · runs, points, snippets, and workspace choices stay in this browser.</div></div>
+    {(storageWarning || !isOnline) && <div className="mt-4 rounded-xl border border-[hsl(var(--accent)/.35)] bg-[hsl(var(--accent)/.06)] px-4 py-3 text-xs text-[hsl(var(--muted-foreground))]" role="status" data-testid="status-local-mode"><strong className="text-[hsl(var(--foreground))]">{storageWarning ? 'Browser storage is unavailable.' : 'You are offline.'}</strong> {storageWarning ? 'You can keep practicing, but this browser may not retain new results.' : 'Your curated drills and existing local progress remain available. Cloud sync is not required.'}</div>}
   </div>;
 }
 
-function FinishState({ run, onAgain, onExit }: { run: Run; onAgain: () => void; onExit: () => void }) {
-  return <div className="rise mx-auto max-w-4xl"><div className="mb-10 text-center"><div className="mx-auto mb-5 grid size-16 place-items-center rounded-2xl border border-[hsl(var(--accent)/.4)] bg-[hsl(var(--accent)/.12)] text-[hsl(var(--accent))]"><Trophy size={28} /></div><div className="font-mono text-[10px] uppercase tracking-[.25em] text-[hsl(var(--accent))]">Run complete</div><h1 className="mt-3 text-4xl font-bold tracking-[-.05em] md:text-6xl">Good work. Again?</h1><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">{run.snippetTitle} <span className="mx-2">·</span> {run.tier} tier <span className="mx-2">·</span> {new Date(run.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p></div><div className="grid gap-3 sm:grid-cols-4"><Metric icon={Gauge} label="WPM" value={run.wpm.toString()} /><Metric icon={Activity} label="CPM" value={run.cpm.toString()} accent="accent" /><Metric icon={Target} label="Accuracy" value={`${run.accuracy}%`} /><Metric icon={Zap} label="Earned" value={`+${run.points}`} detail="points" accent="accent" /></div><div className="mt-10 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card)/.55)] p-6 text-center"><div className="font-mono text-xs text-[hsl(var(--muted-foreground))]">CREDITS ADDED TO YOUR ROOM</div><div className="mt-2 text-3xl font-bold text-[hsl(var(--accent))]">+{Math.max(3, Math.round(run.points / 18))} credits</div><div className="mt-8 flex flex-wrap justify-center gap-3"><button onClick={onAgain} className="flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-bold text-[hsl(var(--primary-foreground))]" data-testid="button-run-again"><RotateCcw size={16} /> Run it again</button><button onClick={onExit} className="rounded-xl border border-[hsl(var(--border))] px-5 py-3 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-finish-done">Back to practice</button></div></div></div>;
+function FinishState({ run, recommendation, onRecommended, onAgain, onExit }: { run: Run; recommendation: PracticeRecommendation | null; onRecommended: () => void; onAgain: () => void; onExit: () => void }) {
+  return <div className="rise mx-auto max-w-4xl"><div className="mb-10 text-center"><div className="mx-auto mb-5 grid size-16 place-items-center rounded-2xl border border-[hsl(var(--accent)/.4)] bg-[hsl(var(--accent)/.12)] text-[hsl(var(--accent))]"><Trophy size={28} /></div><div className="font-mono text-[10px] uppercase tracking-[.25em] text-[hsl(var(--accent))]">Run complete</div><h1 className="mt-3 text-4xl font-bold tracking-[-.05em] md:text-6xl">Good work. Keep the signal moving.</h1><p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">{run.snippetTitle} <span className="mx-2">·</span> {run.tier} tier <span className="mx-2">·</span> {new Date(run.date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p></div><div className="grid gap-3 sm:grid-cols-4"><Metric icon={Gauge} label="WPM" value={run.wpm.toString()} /><Metric icon={Activity} label="CPM" value={run.cpm.toString()} accent="accent" /><Metric icon={Target} label="Accuracy" value={`${run.accuracy}%`} /><Metric icon={Zap} label="Earned" value={`+${run.points}`} detail="points" accent="accent" /></div><div className="mt-10 rounded-2xl border border-[hsl(var(--primary)/.35)] bg-[hsl(var(--primary)/.06)] p-6"><div className="font-mono text-xs uppercase tracking-[.15em] text-[hsl(var(--primary))]">Recommended next</div>{recommendation ? <><h2 className="mt-3 text-2xl font-bold tracking-tight">{recommendation.snippet.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-[hsl(var(--muted-foreground))]">{recommendation.reason} {recommendation.objective}</p><div className="mt-4 flex flex-wrap gap-3 font-mono text-[10px] uppercase tracking-[.12em] text-[hsl(var(--muted-foreground))]"><span>~{recommendation.estimateSeconds}s</span><span>+{recommendation.rewardPoints} pts</span><span>{recommendation.snippet.language}</span></div></> : <p className="mt-3 text-sm text-[hsl(var(--muted-foreground))]">Your next useful run is waiting in Practice.</p>}<div className="mt-6 flex flex-wrap items-center gap-3"><button onClick={onRecommended} disabled={!recommendation} className="flex items-center gap-2 rounded-xl bg-[hsl(var(--primary))] px-5 py-3 text-sm font-bold text-[hsl(var(--primary-foreground))]" data-testid="button-start-recommended"><Play size={16} fill="currentColor" /> Start recommended</button><button onClick={onAgain} className="flex items-center gap-2 rounded-xl border border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-run-again"><RotateCcw size={15} /> Run it again</button><button onClick={onExit} className="rounded-xl border border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]" data-testid="button-finish-done">Back to practice</button><Link href="/progress" className="text-sm text-[hsl(var(--primary))]" data-testid="link-finish-progress">View progress <ArrowRight size={14} className="ml-1 inline" /></Link><Link href="/studio" className="text-sm text-[hsl(var(--primary))]" data-testid="link-finish-studio">Try Live Studio <ArrowRight size={14} className="ml-1 inline" /></Link></div></div><div className="mt-4 text-center text-xs text-[hsl(var(--muted-foreground))]">+{Math.max(3, Math.round(run.points / 18))} credits added locally. No account or sharing required.</div></div>;
 }
 
 function Progress({ runs, liveBuilds, totalPoints, credits }: { runs: Run[]; liveBuilds: LiveStudioBuild[]; totalPoints: number; credits: number }) {
@@ -438,9 +496,9 @@ function Themes({ theme, setTheme, totalPoints, motionPreference, setMotionPrefe
   useEffect(() => {
     if (tierFilter !== 'All' && !unlockedTiers.includes(tierFilter)) setTierFilter('All');
   }, [tierFilter, totalPoints]);
-  useEffect(() => { window.localStorage.setItem('codesprint_palette_tier', JSON.stringify(tierFilter)); }, [tierFilter]);
-  useEffect(() => { window.localStorage.setItem('codesprint_palette_level', JSON.stringify(levelFilter)); }, [levelFilter]);
-  useEffect(() => { window.localStorage.setItem('codesprint_palette_filter', JSON.stringify(variantFilter)); }, [variantFilter]);
+  useEffect(() => { writeStorage('codesprint_palette_tier', tierFilter); }, [tierFilter]);
+  useEffect(() => { writeStorage('codesprint_palette_level', levelFilter); }, [levelFilter]);
+  useEffect(() => { writeStorage('codesprint_palette_filter', variantFilter); }, [variantFilter]);
 
   return <div className="rise">
     <PageIntro eyebrow="Workspace / 04" title="Tune the room around you." description="Choose a palette from the practice tiers, preview its editor surface, and keep motion at a level that helps you focus." />
@@ -838,7 +896,7 @@ function RouterApp() {
   const motionReduced = systemReducedMotion || motionPreference === 'off';
   const animated = selectedPalette.animated && !motionReduced;
   useEffect(() => {
-    window.localStorage.setItem('codesprint_theme', JSON.stringify(theme));
+    writeStorage('codesprint_theme', theme);
     const root = document.documentElement;
     root.classList.add('dark');
     for (const [property, value] of Object.entries(themeTokens[theme])) {
@@ -852,7 +910,7 @@ function RouterApp() {
     }
   }, [paletteUnlocked, theme, totalPoints]);
   useEffect(() => {
-    window.localStorage.setItem('codesprint_motion', JSON.stringify(motionPreference));
+    writeStorage('codesprint_motion', motionPreference);
     document.documentElement.classList.toggle('motion-reduced', motionReduced);
     return () => document.documentElement.classList.remove('motion-reduced');
   }, [motionPreference, motionReduced]);
@@ -863,9 +921,9 @@ function RouterApp() {
     query.addEventListener?.('change', onChange);
     return () => query.removeEventListener?.('change', onChange);
   }, []);
-  useEffect(() => { window.localStorage.setItem('codesprint_custom_snippets', JSON.stringify(customSnippets)); }, [customSnippets]);
-  useEffect(() => { window.localStorage.setItem('codesprint_runs', JSON.stringify(runs)); }, [runs]);
-  useEffect(() => { window.localStorage.setItem('codesprint_live_builds', JSON.stringify(liveBuilds)); }, [liveBuilds]);
+  useEffect(() => { writeStorage('codesprint_custom_snippets', customSnippets); }, [customSnippets]);
+  useEffect(() => { writeStorage('codesprint_runs', runs); }, [runs]);
+  useEffect(() => { writeStorage('codesprint_live_builds', liveBuilds); }, [liveBuilds]);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 3000); return () => window.clearTimeout(timer); }, [notice]);
   const finish = (run: Run) => { setRuns(previous => [...previous, run]); setNotice(`Run saved. +${run.points} points added.`); };
   const finishLiveBuild = (build: LiveStudioBuild) => { setLiveBuilds(previous => [...previous, build]); setNotice(`Live result created. +${build.points} points added.`); };
